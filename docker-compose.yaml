@@ -1,12 +1,12 @@
 services:
-  frontend:
+  client:
     build:
-      context: ./frontend
-      dockerfile: frontend.dockerfile
+      context: ./client
+      dockerfile: client.dockerfile
     ports:
       - "5173:5173"
     volumes:
-      - ./frontend:/app
+      - ./client:/app
       - /app/node_modules
     environment:
       - NODE_ENV=development
