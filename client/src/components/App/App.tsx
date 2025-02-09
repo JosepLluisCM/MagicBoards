@@ -1,8 +1,6 @@
 import { useState } from "react";
-import reactLogo from "../../assets/icons/react.svg";
-import viteLogo from "/vite.svg";
 import { fetchData } from "../../api/services/test/testApi";
-import "../../styles/index.css";
+import "./App.css";
 
 function App() {
   const [data, setData] = useState<Record<string, unknown> | null>(null); // Use a more ambiguous
@@ -15,7 +13,8 @@ function App() {
 
     try {
       const fetchedData = await fetchData(); // Fetch the data using your fetchData function
-      setData(fetchedData); // Set the data in the state
+      setData(fetchedData);
+      console.log(fetchedData); // Set the data in the state
     } catch (error: unknown) {
       if (error instanceof Error) {
         throw new Error(`Failed to fetch data: ${error.message}`); // You can access the error's message
@@ -28,29 +27,17 @@ function App() {
 
   return (
     <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
+      <h1>MAGIC BOARDS</h1>
       <div className="card">
-        <button onClick={handleClick}>Fetch Data</button>
+        <button onClick={handleClick}>Show BD data</button>
         {loading && <p>Loading...</p>}
         {error && <p style={{ color: "red" }}>{error}</p>}
         {data && (
           <div>
             <pre>{JSON.stringify(data, null, 2)}</pre>{" "}
-            {/* Display the fetched data */}
           </div>
         )}
       </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
     </>
   );
 }
