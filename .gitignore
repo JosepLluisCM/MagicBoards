@@ -1,0 +1,31 @@
+# General
+*.env
+*.env.*
+!*.env.template
+!*.env.*.template
+.DS_Store
+.vscode/
+secrets/
+bin/
+obj/
+.vs/
+launchSettings.json
+
+
+# C#/.NET (Backend)
+server/bin/
+server/obj/
+server/.vs/
+*.user
+*.suo
+
+
+# Python (Microservice)
+microservice/__pycache__/
+microservice/*.py[cod]
+microservice/venv/
+
+# Docker
+docker-compose.override.yml
+docker-compose.prod.yml
+.fake
