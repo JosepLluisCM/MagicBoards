@@ -6,6 +6,7 @@
 .DS_Store
 .vscode/
 secrets/
+certs/
 bin/
 obj/
 .vs/

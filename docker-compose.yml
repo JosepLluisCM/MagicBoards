@@ -25,13 +25,14 @@ services:
       - "5000:5000"
       - "5001:5001"
     volumes:
-      - ./secrets:/secrets:ro # Mount secrets folder as read-only
+      - ./certs:/app/certs:ro # Corrected path to match WORKDIR in Dockerfile
+      - ./secrets:/secrets:ro
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_HTTPS_PORTS=5001
       - ASPNETCORE_HTTP_PORTS=5000
-      - ASPNETCORE_Kestrel__Certificates__Default__Path=/secrets/aspnetapp.pfx
-      - ASPNETCORE_Kestrel__Certificates__Default__Password=DEVCERT
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/app/certs/aspnetapp.pfx # Corrected path
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=MAGICBOARDS
     env_file:
       - ./server/.env # Load the .env file located in the 'server' folder
 #networks:

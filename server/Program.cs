@@ -24,6 +24,16 @@ builder.Services.AddCors(options =>
         });
 });
 
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    // Configure HTTPS
+    serverOptions.ConfigureHttpsDefaults(options =>
+    {
+        options.SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | 
+                               System.Security.Authentication.SslProtocols.Tls13;
+    });
+});
+
 var app = builder.Build();
 
 
@@ -35,7 +45,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowAnyOrigin");
-//app.UseHttpsRedirection();
+app.UseHttpsRedirection();
 
 app.UseAuthorization();
 
