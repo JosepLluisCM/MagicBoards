@@ -1,14 +1,14 @@
 import { useState } from "react";
 import Canvas from "./components/canvas";
+import { BrowserRouter } from "react-router";
 
 function App() {
   const [count, setCount] = useState(0);
 
   return (
-    <>
-      <p>TE afdasfdsfsdfs</p>
+    <BrowserRouter>
       <Canvas />
-    </>
+    </BrowserRouter>
   );
 }
 
