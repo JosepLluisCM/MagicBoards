@@ -77,6 +77,7 @@ const CanvasSelection = () => {
 
       // Also remove the canvas data from localStorage
       localStorage.removeItem(`canvas_data_${id}`);
+      localStorage.removeItem(`canvas_position_${id}`);
     }
   };
 

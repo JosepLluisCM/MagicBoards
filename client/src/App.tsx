@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router";
-import Canvas from "./components/canvas";
+import Canvas from "./components/Canvas";
 import CanvasSelection from "./components/CanvasSelection";
 
 function App() {
