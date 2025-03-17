@@ -71,11 +71,11 @@
   color: #333;
 }
 
-.delete-button {
+.delete-canvas {
   background-color: #ff4d4f;
   color: white;
   border: none;
-  border-radius: 50%;
+  border-radius: 30px;
   width: 24px;
   height: 24px;
   display: flex;
@@ -87,7 +87,7 @@
   transition: background-color 0.2s;
 }
 
-.delete-button:hover {
+.delete-canvas:hover {
   background-color: #ff7875;
 }
 
