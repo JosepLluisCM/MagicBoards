@@ -1,15 +1,22 @@
-import { BrowserRouter, Routes, Route } from "react-router";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Box, Flex } from "@chakra-ui/react";
 import Canvas from "./components/Canvas/Canvas";
 import CanvasSelection from "./components/CanvasSelection/CanvasSelection";
+import { ColorModeButton } from "@/components/ui/color-mode";
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<CanvasSelection />} />
-        <Route path="/canvas/:id" element={<Canvas />} />
-      </Routes>
-    </BrowserRouter>
+    <Box minH="100vh" w="100%">
+      <Flex position="absolute" top="4" right="4" zIndex="10">
+        <ColorModeButton />
+      </Flex>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<CanvasSelection />} />
+          <Route path="/canvas/:id" element={<Canvas />} />
+        </Routes>
+      </BrowserRouter>
+    </Box>
   );
 }
 

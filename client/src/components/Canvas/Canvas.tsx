@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef } from "react";
 import { Stage, Layer, Image as KonvaImage, Transformer } from "react-konva";
-import { useParams, Link } from "react-router";
-import "./Canvas.css";
+import Konva from "konva";
+import { useParams, useNavigate } from "react-router-dom";
+import { Box, Flex, Button, Text } from "@chakra-ui/react";
 
 interface CanvasElement {
   id: string;
@@ -29,6 +30,7 @@ interface StagePosition {
 
 const Canvas = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [canvasData, setCanvasData] = useState<CanvasData | null>(null);
   const [dimensions, setDimensions] = useState({
     width: window.innerWidth,
@@ -37,8 +39,8 @@ const Canvas = () => {
   const [images, setImages] = useState<{ [key: string]: HTMLImageElement }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const transformerRef = useRef<any>(null);
-  const stageRef = useRef<any>(null);
+  const transformerRef = useRef<Konva.Transformer | null>(null);
+  const stageRef = useRef<Konva.Stage | null>(null);
   const [stagePosition, setStagePosition] = useState<StagePosition>({
     x: 0,
     y: 0,
@@ -196,16 +198,18 @@ const Canvas = () => {
 
         // Calculate position in the center of the current view
         const stageInstance = stageRef.current;
-        const pointerPosition = stageInstance.getPointerPosition();
+        if (!stageInstance) return;
 
+        const pointerPositionRaw = stageInstance.getPointerPosition();
         let x, y;
-        if (pointerPosition) {
+
+        if (pointerPositionRaw) {
           // If we have a pointer position, place the image there
           const transform = stageInstance
             .getAbsoluteTransform()
             .copy()
             .invert();
-          const pos = transform.point(pointerPosition);
+          const pos = transform.point(pointerPositionRaw);
           x = pos.x - width / 2;
           y = pos.y - height / 2;
         } else {
@@ -274,30 +278,35 @@ const Canvas = () => {
     });
   };
 
-  // Add a new useEffect to handle the transformer
+  // Update the transformer reference and behavior based on selectedId
   useEffect(() => {
     if (selectedId && transformerRef.current) {
       // Find the selected node by id
-      const node = transformerRef.current.getStage().findOne(`#${selectedId}`);
+      const node = transformerRef.current.getStage()?.findOne(`#${selectedId}`);
       if (node) {
         // Reset scale to 1 to avoid compounding scale issues
         node.scaleX(1);
         node.scaleY(1);
 
         transformerRef.current.nodes([node]);
-        transformerRef.current.getLayer().batchDraw();
+        // Enable/disable keeping ratio based on Ctrl key state
+        transformerRef.current.keepRatio(!isCtrlPressed);
+        transformerRef.current.getLayer()?.batchDraw();
       }
     } else if (transformerRef.current) {
       transformerRef.current.nodes([]);
-      transformerRef.current.getLayer().batchDraw();
+      transformerRef.current.getLayer()?.batchDraw();
     }
-  }, [selectedId]);
+  }, [selectedId, isCtrlPressed]);
 
   const handleTransformEnd = (id: string) => {
     if (!canvasData) return;
 
     // Find the node to get its new properties
-    const node = stageRef.current.findOne(`#${id}`);
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const node = stage.findOne(`#${id}`);
     if (!node) return;
 
     // Get the current element
@@ -362,33 +371,31 @@ const Canvas = () => {
     };
   }, [selectedId, canvasData]);
 
-  // Handle wheel event for zooming
-  const handleWheel = (e: any) => {
-    e.evt.preventDefault();
-
+  // React event handlers for the Box component
+  const handleBoxWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    e.preventDefault();
     const stage = stageRef.current;
+    if (!stage) return;
+
     const oldScale = stagePosition.scale;
-    const pointerPos = stage.getPointerPosition();
+    const newScale = e.deltaY < 0 ? oldScale * 1.1 : oldScale / 1.1;
 
-    const mousePointTo = {
-      x: (pointerPos.x - stagePosition.x) / oldScale,
-      y: (pointerPos.y - stagePosition.y) / oldScale,
-    };
-
-    // Calculate new scale
-    // Zoom in: scale up, Zoom out: scale down
-    const zoomDirection = e.evt.deltaY < 0 ? 1 : -1;
-    const SCALE_FACTOR = 1.1;
-    const newScale =
-      zoomDirection > 0 ? oldScale * SCALE_FACTOR : oldScale / SCALE_FACTOR;
-
-    // Limit the scale to reasonable bounds
     const limitedScale = Math.max(0.1, Math.min(newScale, 10));
 
-    // Calculate new position
+    // Since we can't use stage.getPointerPosition() here,
+    // calculate based on the client rect and mouse position
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    const mousePointTo = {
+      x: (mouseX - stagePosition.x) / oldScale,
+      y: (mouseY - stagePosition.y) / oldScale,
+    };
+
     const newPos = {
-      x: pointerPos.x - mousePointTo.x * limitedScale,
-      y: pointerPos.y - mousePointTo.y * limitedScale,
+      x: mouseX - mousePointTo.x * limitedScale,
+      y: mouseY - mousePointTo.y * limitedScale,
     };
 
     setStagePosition({
@@ -398,52 +405,39 @@ const Canvas = () => {
     });
   };
 
-  // Handle mouse down for panning
-  const handleMouseDown = (e: any) => {
+  const handleBoxMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     // Middle mouse button (button 1)
-    if (e.evt.button === 1) {
+    if (e.button === 1) {
       setIsPanning(true);
-      e.evt.preventDefault();
-      e.evt.stopPropagation();
+      e.preventDefault();
     }
   };
 
-  // Handle mouse move for panning
-  const handleMouseMove = (e: any) => {
+  const handleBoxMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (isPanning) {
-      e.evt.preventDefault();
-      const stage = stageRef.current;
+      e.preventDefault();
 
       setStagePosition({
         ...stagePosition,
-        x: stagePosition.x + e.evt.movementX,
-        y: stagePosition.y + e.evt.movementY,
+        x: stagePosition.x + e.movementX,
+        y: stagePosition.y + e.movementY,
       });
     }
   };
 
-  // Handle mouse up for panning
-  const handleMouseUp = (e: any) => {
-    if (e.evt.button === 1) {
+  const handleBoxMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button === 1) {
       setIsPanning(false);
     }
   };
 
-  // Prevent default middle mouse behavior (auto-scroll)
-  useEffect(() => {
-    const preventMiddleMouseScroll = (e: MouseEvent) => {
-      if (e.button === 1) {
-        e.preventDefault();
-        return false;
-      }
-    };
+  const handleBoxKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    handleKeyDown(e as unknown as KeyboardEvent);
+  };
 
-    document.addEventListener("mousedown", preventMiddleMouseScroll);
-
-    return () => {
-      document.removeEventListener("mousedown", preventMiddleMouseScroll);
-    };
-  }, []);
+  const handleBoxKeyUp = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    handleKeyUp(e as unknown as KeyboardEvent);
+  };
 
   const handleSelectImage = (id: string) => {
     setSelectedId(id);
@@ -461,32 +455,93 @@ const Canvas = () => {
     }
   };
 
+  const handleDeleteSelected = () => {
+    if (canvasData && selectedId) {
+      setCanvasData({
+        ...canvasData,
+        elements: canvasData.elements.filter((el) => el.id !== selectedId),
+      });
+      setSelectedId(null);
+    }
+  };
+
+  const handleResetView = () => {
+    setStagePosition({ x: 0, y: 0, scale: 1 });
+  };
+
+  const checkDeselect = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    // Deselect when clicking on empty area
+    const clickedOnEmpty = e.target === e.target.getStage();
+    if (clickedOnEmpty) {
+      // Apply any pending transformations to the previously selected node
+      if (selectedId) {
+        handleTransformEnd(selectedId);
+      }
+      setSelectedId(null);
+    }
+  };
+
   return (
-    <div className={`canvas-container ${isPanning ? "panning" : ""}`}>
+    <Box
+      width="100vw"
+      height="100vh"
+      overflow="hidden"
+      tabIndex={0}
+      onKeyDown={handleBoxKeyDown}
+      onKeyUp={handleBoxKeyUp}
+      onWheel={handleBoxWheel}
+      onMouseDown={handleBoxMouseDown}
+      onMouseMove={handleBoxMouseMove}
+      onMouseUp={handleBoxMouseUp}
+    >
+      <Flex position="absolute" top="4" left="4" gap="2" zIndex="10">
+        <Button onClick={() => navigate("/")} colorScheme="blue" size="sm">
+          Back to Selection
+        </Button>
+        <Button onClick={handleAddImageClick} colorScheme="blue" size="sm">
+          Add Image
+        </Button>
+        <Button onClick={handleDeleteSelected} colorScheme="red" size="sm">
+          Delete Selected
+        </Button>
+        <Button onClick={handleResetView} size="sm" colorScheme="purple">
+          Reset View
+        </Button>
+      </Flex>
+
+      {isCtrlPressed && selectedId && (
+        <Box
+          position="absolute"
+          top="14"
+          left="4"
+          bg="black"
+          color="white"
+          p="2"
+          borderRadius="md"
+          fontSize="sm"
+          zIndex="10"
+        >
+          Free Resize Mode
+        </Box>
+      )}
+
+      <input
+        type="file"
+        ref={fileInputRef}
+        style={{ display: "none" }}
+        accept="image/*"
+        onChange={handleFileChange}
+      />
+
       <Stage
         width={dimensions.width}
         height={dimensions.height}
         ref={stageRef}
-        onClick={(e) => {
-          // Deselect when clicking on empty area
-          const clickedOnEmpty = e.target === e.target.getStage();
-          if (clickedOnEmpty) {
-            // Apply any pending transformations to the previously selected node
-            if (selectedId) {
-              handleTransformEnd(selectedId);
-            }
-            setSelectedId(null);
-          }
-        }}
-        onWheel={handleWheel}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
         x={stagePosition.x}
         y={stagePosition.y}
         scaleX={stagePosition.scale}
         scaleY={stagePosition.scale}
-        draggable={false}
+        onClick={checkDeselect}
       >
         <Layer>
           {canvasData?.elements.map((element) => {
@@ -501,105 +556,34 @@ const Canvas = () => {
                   width={element.width}
                   height={element.height}
                   rotation={element.rotation}
-                  scaleX={1}
-                  scaleY={1}
                   draggable
                   onClick={() => handleSelectImage(element.id)}
                   onTap={() => handleSelectImage(element.id)}
                   onDragStart={() => handleDragStart(element.id)}
-                  onDragEnd={(e) =>
-                    handleDragEnd(element.id, e.target.x(), e.target.y())
-                  }
+                  onDragEnd={(e) => {
+                    handleDragEnd(element.id, e.target.x(), e.target.y());
+                  }}
                   onTransformEnd={() => handleTransformEnd(element.id)}
-                  shadowColor="black"
-                  shadowBlur={element.isDragging ? 10 : 0}
-                  shadowOpacity={element.isDragging ? 0.6 : 0}
-                  shadowOffsetX={element.isDragging ? 5 : 0}
-                  shadowOffsetY={element.isDragging ? 5 : 0}
                 />
               );
             }
             return null;
           })}
-          <Transformer
-            ref={transformerRef}
-            boundBoxFunc={(oldBox, newBox) => {
-              // Limit resize to a minimum size
-              if (newBox.width < 5 || newBox.height < 5) {
-                return oldBox;
-              }
-              return newBox;
-            }}
-            rotateEnabled={true}
-            enabledAnchors={[
-              "top-left",
-              "top-right",
-              "bottom-left",
-              "bottom-right",
-            ]}
-            keepRatio={!isCtrlPressed}
-            onTransform={() => {
-              // Force update on transform to ensure smooth visual feedback
-              if (transformerRef.current) {
-                transformerRef.current.getLayer().batchDraw();
-              }
-            }}
-          />
+          {selectedId && (
+            <Transformer
+              ref={transformerRef}
+              boundBoxFunc={(oldBox, newBox) => {
+                // Limit resize to a minimal size
+                if (newBox.width < 5 || newBox.height < 5) {
+                  return oldBox;
+                }
+                return newBox;
+              }}
+            />
+          )}
         </Layer>
       </Stage>
-
-      <div className="floating-controls">
-        <Link to="/" className="floating-button back-button">
-          Back to Canvas Selection
-        </Link>
-        <button
-          className="floating-button add-button"
-          onClick={handleAddImageClick}
-        >
-          Add Image
-        </button>
-        {selectedId && (
-          <button
-            className="floating-button delete-button"
-            onClick={() => {
-              if (canvasData && selectedId) {
-                setCanvasData({
-                  ...canvasData,
-                  elements: canvasData.elements.filter(
-                    (el) => el.id !== selectedId
-                  ),
-                });
-                setSelectedId(null);
-              }
-            }}
-          >
-            Delete Selected
-          </button>
-        )}
-        <button
-          className="floating-button reset-button"
-          onClick={() => {
-            setStagePosition({ x: 0, y: 0, scale: 1 });
-          }}
-        >
-          Reset View
-        </button>
-        <input
-          type="file"
-          ref={fileInputRef}
-          style={{ display: "none" }}
-          accept="image/*"
-          onChange={handleFileChange}
-        />
-      </div>
-
-      <div className="canvas-info">
-        <span>Zoom: {Math.round(stagePosition.scale * 100)}%</span>
-        <span>Pan: Middle Mouse Button</span>
-        <span>Zoom: Mouse Wheel</span>
-        <span>Free Resize: Hold Ctrl</span>
-      </div>
-    </div>
+    </Box>
   );
 };
 
