@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { BrowserRouter, Routes, Route } from "react-router";
 import Canvas from "./components/canvas";
-import { BrowserRouter } from "react-router";
+import CanvasSelection from "./components/CanvasSelection";
 
 function App() {
-  const [count, setCount] = useState(0);
-
   return (
     <BrowserRouter>
-      <Canvas />
+      <Routes>
+        <Route path="/" element={<CanvasSelection />} />
+        <Route path="/canvas/:id" element={<Canvas />} />
+      </Routes>
     </BrowserRouter>
   );
 }
