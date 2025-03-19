@@ -15,28 +15,43 @@ namespace server.Models
     public class Canvas
     {
         [FirestoreProperty]
-        public string Id { get; set; }
+        public required string Id { get; set; }
 
         [FirestoreProperty]
-        public string UserId { get; set; }
+        public required string UserId { get; set; }
 
         [FirestoreProperty]
-        public string Name { get; set; }
+        public required string Name { get; set; }
 
         [FirestoreProperty]
-        public Timestamp CreatedAt { get; set; } = DateTime.UtcNow;
+        public required DateTime CreatedAt { get; set; }
 
         [FirestoreProperty]
-        public Timestamp UpdatedAt { get; set; }
+        public required DateTime UpdatedAt { get; set; }
 
         [FirestoreProperty]
-        public Position Position { get; set; }
+        public required Position Position { get; set; }
 
         [FirestoreProperty]
         public int Scale { get; set; }
 
         [FirestoreProperty]
         public List<CanvasElement> Elements { get; set; } = new List<CanvasElement>();
+
+        //CONSTRUCTOR
+        public static Canvas CreateNew(string Id, string userId, string name = "Untitled Canvas")
+        {
+            return new Canvas
+            {
+                Id = Id,
+                UserId = userId,
+                Name = name,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                Position = new Position { X = 0, Y = 0 },
+                Scale = 100
+            };
+        }
     }
 
     [FirestoreData]

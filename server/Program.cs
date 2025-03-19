@@ -7,6 +7,8 @@ Env.Load();
 
 // Register FirestoreService as a singleton
 builder.Services.AddSingleton<FirestoreService>();
+builder.Services.AddSingleton<CanvasesService>();
+
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

@@ -71,4 +71,5 @@ namespace server.Models
 
         [FirestoreProperty]
         public string Style { get; set; }
-    }   
+    }
+}

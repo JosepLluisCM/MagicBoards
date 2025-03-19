@@ -21,6 +21,6 @@ namespace server.Models
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;  // Account creation timestamp
 
         [FirestoreProperty]
-        public DateTime UpdatedAt { get; set; };  // Account creation timestamp
+        public DateTime UpdatedAt { get; set; }  // Account creation timestamp
     }
 }

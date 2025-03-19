@@ -6,7 +6,7 @@ using server.Services;
 namespace server.Controllers
 {
   [ApiController]
-  [Route("api/[controller]")]
+  [Route("api/firestore")]
   public class FirestoreController : ControllerBase
   {
     private readonly FirestoreService _firestoreService;

@@ -21,14 +21,14 @@ console.log("apiClient created with baseURL:", apiClient.defaults.baseURL);
 //  }
 //  return config;
 //});
-//
-//apiClient.interceptors.response.use(
-//  (response) => response,
-//  (error) => {
-//    // Handle errors globally
-//    console.error("API Error:", error.response?.data || error.message);
-//    return Promise.reject(error);
-//  }
-//);
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Handle errors globally
+    console.error("API Error:", error.response?.data || error.message);
+    return Promise.reject(error);
+  }
+);
 
 export default apiClient;

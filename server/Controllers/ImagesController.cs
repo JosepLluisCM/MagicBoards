@@ -4,7 +4,7 @@ using server.Services;
 namespace server.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/images")]
     public class ImagesController
     {
         private readonly ImagesService _imagesService;

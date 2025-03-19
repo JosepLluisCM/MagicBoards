@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 namespace server.Controllers
 {
     [ApiController]
-    [Route("[controller]")]
+    [Route("item")]
     public class TestController : ControllerBase
     {
         [HttpGet("test-connection")]

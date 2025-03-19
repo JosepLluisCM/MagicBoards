@@ -4,7 +4,7 @@ using server.Services;
 namespace server.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/logs")]
     public class LogsController
     {
         private readonly LogsService _logsService;
