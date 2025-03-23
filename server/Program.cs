@@ -5,9 +5,25 @@ var builder = WebApplication.CreateBuilder(args);
 
 Env.Load();
 
+// Validate Firestore credentials
+var firestoreCredPath = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS");
+if (string.IsNullOrEmpty(firestoreCredPath) || !File.Exists(firestoreCredPath))
+{
+    Console.WriteLine("Warning: GOOGLE_APPLICATION_CREDENTIALS is not properly configured");
+}
+
+// Validate R2 credentials file
+var r2CredPath = Environment.GetEnvironmentVariable("R2_CREDENTIALS_PATH");
+if (string.IsNullOrEmpty(r2CredPath) || !File.Exists(r2CredPath))
+{
+    Console.WriteLine("Warning: R2_CREDENTIALS_PATH is not properly configured");
+}
+
 // Register FirestoreService as a singleton
 builder.Services.AddSingleton<FirestoreService>();
+builder.Services.AddSingleton<R2CloudflareService>();
 builder.Services.AddSingleton<CanvasesService>();
+builder.Services.AddSingleton<ImagesService>();
 
 
 builder.Services.AddControllers();
