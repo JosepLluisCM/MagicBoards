@@ -58,60 +58,60 @@ namespace server.Models
     public class CanvasElement
     {
         [FirestoreProperty]
-        public string Type { get; set; }
+        public required string Type { get; set; }
 
         // Text-specific properties
         [FirestoreProperty]
-        public string Content { get; set; }
+        public required string Content { get; set; }
 
         // Image-specific properties
         [FirestoreProperty]
-        public string ImageId { get; set; }
+        public required string ImageId { get; set; }
 
         [FirestoreProperty]
-        public Position Position { get; set; }
+        public required Position Position { get; set; }
 
         [FirestoreProperty]
-        public Size Size { get; set; }
+        public required Size Size { get; set; }
 
         [FirestoreProperty]
-        public ElementStyle Style { get; set; }
+        public ElementStyle? Style { get; set; }
     }
 
     [FirestoreData]
     public class Position
     {
         [FirestoreProperty]
-        public int X { get; set; }
+        public required int X { get; set; } = 0;
 
         [FirestoreProperty]
-        public int Y { get; set; }
+        public required int Y { get; set; } = 0;
     }
 
     [FirestoreData]
     public class Size
     {
         [FirestoreProperty]
-        public int Width { get; set; }
+        public int Width { get; set; } = 0;
 
         [FirestoreProperty]
-        public int Height { get; set; }
+        public int Height { get; set; } = 0;
     }
 
     [FirestoreData]
     public class ElementStyle
     {
         [FirestoreProperty]
-        public string FillColor { get; set; }
+        public string? FillColor { get; set; }
 
         [FirestoreProperty]
-        public string BorderColor { get; set; }
+        public string? BorderColor { get; set; }
 
         [FirestoreProperty]
         public int FontSize { get; set; }
 
         [FirestoreProperty]
-        public string Color { get; set; }
+        public string? Color { get; set; }
     }
 }
 
