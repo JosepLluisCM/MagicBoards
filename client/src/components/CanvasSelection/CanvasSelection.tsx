@@ -14,14 +14,16 @@ import {
   useDisclosure,
   Dialog,
   Portal,
+  Spinner,
 } from "@chakra-ui/react";
 import { LuX as CloseIcon } from "react-icons/lu";
-
-interface Canvas {
-  id: string;
-  name: string;
-  createdAt: Date;
-}
+import {
+  getCanvasesForUser,
+  createCanvas,
+  deleteCanvas,
+  getCanvas,
+} from "@/api/services/CanvasService";
+import { Canvas } from "@/types";
 
 const CanvasSelection = () => {
   const navigate = useNavigate();
@@ -30,70 +32,63 @@ const CanvasSelection = () => {
   const [canvasToDelete, setCanvasToDelete] = useState<string | null>(null);
   const { open, onOpen, onClose } = useDisclosure();
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Load canvases from localStorage on component mount
+  // Load canvases from API on component mount
   useEffect(() => {
-    const savedCanvases = localStorage.getItem("canvases");
-    if (savedCanvases) {
+    const loadCanvases = async () => {
+      setIsLoading(true);
       try {
-        // Parse the JSON string and convert date strings back to Date objects
-        const parsedCanvases = JSON.parse(savedCanvases).map((canvas: any) => ({
-          ...canvas,
-          createdAt: new Date(canvas.createdAt),
-        }));
-        setCanvases(parsedCanvases);
-      } catch (error) {
-        console.error("Error parsing canvases from localStorage:", error);
-        // If there's an error, initialize with a default canvas
-        setCanvases([
-          {
-            id: "1",
-            name: "My First Canvas",
-            createdAt: new Date(),
-          },
-        ]);
+        const loadedCanvases = await getCanvasesForUser();
+        setCanvases(loadedCanvases as Canvas[]);
+        setError(null);
+      } catch (err) {
+        console.error("Error loading canvases:", err);
+        setError("Failed to load canvases. Please try again later.");
+      } finally {
+        setIsLoading(false);
       }
-    } else {
-      // If no canvases in localStorage, initialize with a default canvas
-      setCanvases([
-        {
-          id: "1",
-          name: "My First Canvas",
-          createdAt: new Date(),
-        },
-      ]);
-    }
-  }, []);
-
-  // Save canvases to localStorage whenever they change
-  useEffect(() => {
-    if (canvases.length > 0) {
-      localStorage.setItem("canvases", JSON.stringify(canvases));
-    }
-  }, [canvases]);
-
-  const handleCreateCanvas = () => {
-    if (!newCanvasName.trim()) return;
-
-    const newCanvas: Canvas = {
-      id: Date.now().toString(),
-      name: newCanvasName,
-      createdAt: new Date(),
     };
 
-    setCanvases([...canvases, newCanvas]);
-    setNewCanvasName("");
+    loadCanvases();
+  }, []);
+
+  // No need for the useEffect that saves to localStorage - we're using the API now
+
+  const handleCreateCanvas = async () => {
+    if (!newCanvasName.trim()) return;
+
+    setIsSubmitting(true);
+    try {
+      const newCanvas = await createCanvas(newCanvasName);
+      setCanvases([...canvases, newCanvas]);
+      setNewCanvasName("");
+      setError(null);
+    } catch (err) {
+      console.error("Error creating canvas:", err);
+      setError("Failed to create new canvas. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleDeleteCanvas = (id: string) => {
-    // Remove the canvas from the state
-    const updatedCanvases = canvases.filter((canvas) => canvas.id !== id);
-    setCanvases(updatedCanvases);
-
-    // Also remove the canvas data from localStorage
-    localStorage.removeItem(`canvas_data_${id}`);
-    localStorage.removeItem(`canvas_position_${id}`);
-    onClose();
+  const handleDeleteCanvas = async (id: string) => {
+    setIsSubmitting(true);
+    try {
+      await deleteCanvas(id);
+      // Remove the canvas from the state
+      const updatedCanvases = canvases.filter((canvas) => canvas.id !== id);
+      setCanvases(updatedCanvases);
+      setError(null);
+    } catch (err) {
+      console.error("Error deleting canvas:", err);
+      setError("Failed to delete canvas. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+      onClose();
+    }
   };
 
   const confirmDelete = (
@@ -106,12 +101,34 @@ const CanvasSelection = () => {
     onOpen();
   };
 
+  const handleOpenCanvas = async (id: string) => {
+    setIsSubmitting(true);
+    try {
+      // Get canvas data before navigation
+      await getCanvas(id);
+      // If successful, navigate to the canvas
+      navigate(`/canvas/${id}`);
+      setError(null);
+    } catch (err) {
+      console.error("Error retrieving canvas:", err);
+      setError("Failed to open canvas. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <Container maxW="container.xl" py={8}>
       <VStack gap={8} width="100%">
         <Heading textAlign="center" size="xl">
           My Canvases
         </Heading>
+
+        {error && (
+          <Text color="red.500" textAlign="center">
+            {error}
+          </Text>
+        )}
 
         <Flex justifyContent="center" width="100%" mb={8}>
           <Input
@@ -121,51 +138,76 @@ const CanvasSelection = () => {
             size="md"
             maxW="300px"
             mr={4}
+            disabled={isSubmitting}
           />
-          <Button onClick={handleCreateCanvas} colorScheme="blue">
+          <Button
+            onClick={handleCreateCanvas}
+            colorScheme="blue"
+            loading={isSubmitting}
+            loadingText="Creating"
+          >
             Create New Canvas
           </Button>
         </Flex>
 
-        <Grid
-          templateColumns="repeat(auto-fill, minmax(300px, 1fr))"
-          gap={6}
-          width="100%"
-        >
-          {canvases.map((canvas) => (
-            <Box
-              key={canvas.id}
-              borderWidth="1px"
-              borderRadius="lg"
-              overflow="hidden"
-              boxShadow="sm"
-              p={5}
-            >
-              <Flex justifyContent="space-between" alignItems="center" mb={2}>
-                <Heading size="md">{canvas.name}</Heading>
-                <IconButton
-                  aria-label="Delete Canvas"
-                  size="sm"
-                  variant="ghost"
-                  colorScheme="red"
-                  onClick={(e) => confirmDelete(canvas.id, e)}
+        {isLoading ? (
+          <Flex justify="center" width="100%" py={10}>
+            <Spinner size="xl" />
+          </Flex>
+        ) : (
+          <Grid
+            templateColumns="repeat(auto-fill, minmax(300px, 1fr))"
+            gap={6}
+            width="100%"
+          >
+            {canvases.length === 0 ? (
+              <Box textAlign="center" gridColumn="1/-1">
+                <Text fontSize="lg">
+                  No canvases found. Create your first canvas above.
+                </Text>
+              </Box>
+            ) : (
+              canvases.map((canvas) => (
+                <Box
+                  key={canvas.id}
+                  borderWidth="1px"
+                  borderRadius="lg"
+                  overflow="hidden"
+                  boxShadow="sm"
+                  p={5}
                 >
-                  <CloseIcon />
-                </IconButton>
-              </Flex>
-              <Text mb={4}>
-                Created: {canvas.createdAt.toLocaleDateString()}
-              </Text>
-              <Button
-                onClick={() => navigate(`/canvas/${canvas.id}`)}
-                colorScheme="blue"
-                width="100%"
-              >
-                Open Canvas
-              </Button>
-            </Box>
-          ))}
-        </Grid>
+                  <Flex
+                    justifyContent="space-between"
+                    alignItems="center"
+                    mb={2}
+                  >
+                    <Heading size="md">{canvas.name}</Heading>
+                    <IconButton
+                      aria-label="Delete Canvas"
+                      size="sm"
+                      variant="ghost"
+                      colorScheme="red"
+                      onClick={(e) => confirmDelete(canvas.id, e)}
+                      disabled={isSubmitting}
+                    >
+                      <CloseIcon />
+                    </IconButton>
+                  </Flex>
+                  <Text mb={4}>
+                    Created: {canvas.createdAt.toLocaleDateString()}
+                  </Text>
+                  <Button
+                    onClick={() => handleOpenCanvas(canvas.id)}
+                    colorScheme="blue"
+                    width="100%"
+                  >
+                    Open Canvas
+                  </Button>
+                </Box>
+              ))
+            )}
+          </Grid>
+        )}
       </VStack>
 
       <Dialog.Root
@@ -185,7 +227,12 @@ const CanvasSelection = () => {
                 be undone.
               </Dialog.Body>
               <Dialog.Footer>
-                <Button ref={cancelRef} onClick={onClose} variant="outline">
+                <Button
+                  ref={cancelRef}
+                  onClick={onClose}
+                  variant="outline"
+                  disabled={isSubmitting}
+                >
                   Cancel
                 </Button>
                 <Button
@@ -194,6 +241,8 @@ const CanvasSelection = () => {
                     canvasToDelete && handleDeleteCanvas(canvasToDelete)
                   }
                   ml={3}
+                  loading={isSubmitting}
+                  loadingText="Deleting"
                 >
                   Delete
                 </Button>

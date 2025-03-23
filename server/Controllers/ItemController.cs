@@ -7,12 +7,12 @@ namespace server.Controllers
     [Route("item")]
     public class TestController : ControllerBase
     {
-        [HttpGet("test-connection")]
-        public async Task<IActionResult> TestConnection()
-        {
-            // Your logic here
-            return Ok(new { Message = "Connection successful." });
-        }
+        //[HttpGet("test-connection")]
+        //public async Task<IActionResult> TestConnection()
+        //{
+        //    // Your logic here
+        //    return Ok(new { Message = "Connection successful." });
+        //}
     }
 
 }

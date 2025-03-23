@@ -12,7 +12,7 @@ function App() {
       </Flex>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<CanvasSelection />} />
+          <Route path="/canvas-selection" element={<CanvasSelection />} />
           <Route path="/canvas/:id" element={<Canvas />} />
         </Routes>
       </BrowserRouter>

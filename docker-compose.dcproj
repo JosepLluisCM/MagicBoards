@@ -8,6 +8,9 @@
     <DockerLaunchAction>LaunchBrowser</DockerLaunchAction>
     <DockerServiceUrl>{Scheme}://localhost:{ServicePort}/swagger</DockerServiceUrl>
     <DockerServiceName>server</DockerServiceName>
+	<DockerComposeUpArguments>--build</DockerComposeUpArguments>
+	<DockerComposeDownArguments>--remove-orphans -v</DockerComposeDownArguments>
+	<PostDebugScript>docker-compose down</PostDebugScript>
   </PropertyGroup>
   <ItemGroup>
     <None Include="docker-compose.override.yml">

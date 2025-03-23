@@ -1,21 +1,61 @@
 import apiClient from "../apiClient";
+import { Canvas } from "../../types";
 
 //export async function fetchData() {
 //  const response = await apiClient.get("api/Firestore/documents");
 //  return response.data; // Return the relevant data
 //}
 
-export async function createCanvas(name: string) {
-  const response = await apiClient.post("canvases", { name });
-  return response.data;
+export async function createCanvas(name: string): Promise<Canvas> {
+  try {
+    const response = await apiClient.post("canvases", { name });
+    return {
+      ...response.data,
+      createdAt: new Date(response.data.createdAt),
+      updatedAt: new Date(response.data.updatedAt),
+    };
+  } catch (error) {
+    console.error("Error creating canvas:", error);
+    throw new Error("Failed to create canvas");
+  }
 }
 
-export async function getCanvases() {
-  const response = await apiClient.get("canvases");
-  return response.data;
+export async function getCanvasesForUser(): Promise<Object[]> {
+  try {
+    const response = await apiClient.get("canvases");
+    return response.data.map((canvas: any) => ({
+      ...canvas,
+      createdAt: new Date(canvas.createdAt),
+      updatedAt: new Date(canvas.updatedAt),
+    }));
+  } catch (error) {
+    console.error("Error fetching canvases:", error);
+    // You can transform technical errors into domain-specific ones
+    throw new Error("Failed to retrieve canvases");
+  }
 }
 
-export async function deleteCanvas(id: string) {
-  const response = await apiClient.delete(`canvases/${id}`);
-  return response.data;
+export async function deleteCanvas(id: string): Promise<any> {
+  try {
+    const response = await apiClient.delete(`canvases/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting canvas:", error);
+    throw new Error("Failed to delete canvas");
+  }
+}
+
+export async function getCanvas(id: string): Promise<Canvas> {
+  try {
+    const response = await apiClient.get(`canvases/${id}`);
+    return {
+      ...response.data,
+      createdAt: new Date(response.data.createdAt),
+      updatedAt: new Date(response.data.updatedAt),
+    };
+  } catch (error) {
+    console.error("Error fetching canvas:", error);
+    // You can transform technical errors into domain-specific ones
+    throw new Error("Failed to retrieve canvas");
+  }
 }

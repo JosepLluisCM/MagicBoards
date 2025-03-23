@@ -17,11 +17,11 @@ namespace server.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetCanvases()
+        public async Task<IActionResult> GetCanvasesForUser()
         {
             try
             {
-                List<Canvas> canvasList = await _canvasesService.GetCanvasesAsync();
+                List<object> canvasList = await _canvasesService.GetCanvasesForUserAsync();
                 return Ok(canvasList);
             }
             catch (Exception ex)
@@ -58,6 +58,20 @@ namespace server.Controllers
                 return StatusCode(500, $"An error occurred: {ex}");
             }
             
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetCanvas(string id)
+        {
+            try
+            {
+                Canvas canvas = await _canvasesService.GetCanvasAsync(id);
+                return Ok(canvas);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex}");
+            }
         }
     }
 }

@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { Stage, Layer, Image as KonvaImage, Transformer } from "react-konva";
 import Konva from "konva";
 import { useParams, useNavigate } from "react-router-dom";
-import { Box, Flex, Button, Text } from "@chakra-ui/react";
+import { Box, Flex, Button } from "@chakra-ui/react";
 
 interface CanvasElement {
   id: string;
