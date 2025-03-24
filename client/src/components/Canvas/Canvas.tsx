@@ -495,7 +495,11 @@ const Canvas = () => {
       onMouseUp={handleBoxMouseUp}
     >
       <Flex position="absolute" top="4" left="4" gap="2" zIndex="10">
-        <Button onClick={() => navigate("/")} colorScheme="blue" size="sm">
+        <Button
+          onClick={() => navigate("/canvas-selection")}
+          colorScheme="blue"
+          size="sm"
+        >
           Back to Selection
         </Button>
         <Button onClick={handleAddImageClick} colorScheme="blue" size="sm">

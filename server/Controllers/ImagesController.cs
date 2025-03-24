@@ -1,8 +1,8 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Amazon.S3.Model;
 using Microsoft.AspNetCore.Mvc;
+using server.Models.Requests;
 using server.Services;
-using System;
-using System.Threading.Tasks;
+using server.Utilities;
 
 namespace server.Controllers
 {
@@ -18,7 +18,7 @@ namespace server.Controllers
         }
 
         [HttpPost("upload")]
-        public async Task<IActionResult> UploadImage(IFormFile image)
+        public async Task<IActionResult> UploadImage([FromForm] AddImageRequest request, IFormFile image)
         {
             try
             {
@@ -26,14 +26,33 @@ namespace server.Controllers
                     return BadRequest("No image file provided");
                 
                 // Call the service method to upload the image
-                string imagePath = await _imagesService.UploadImageAsync("ADMIN", image);
-                
-                // Return the path or a full URL to the image
-                return Ok(new { imagePath });
+                string imagePath = await _imagesService.UploadImageAsync(request, image);
+
+                return Ok(new { imagePath = imagePath });
             }
             catch (Exception ex)
             {
                 return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        [HttpGet("{*imagePath}")]
+        public async Task<IActionResult> GetImage(string imagePath)
+        {
+            try
+            { 
+                string formattedPath = System.Net.WebUtility.UrlDecode(imagePath);
+
+                var (imageStream, contentType) = await _imagesService.GetImageAsync(formattedPath);
+
+                Response.Headers.Append("Cache-Control", "public, max-age=86400"); // Cache for 1 day
+
+                return File(imageStream, contentType);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Error retrieving image {imagePath}: {ex.Message}");
+                return NotFound($"Image not found: {imagePath}");
             }
         }
     }
