@@ -59,5 +59,22 @@ namespace server.Services
 
             return snapshot.ConvertTo<Canvas>();
         }
+
+        public async Task<Canvas> UpdateCanvasAsync(string id, Canvas canvas)
+        {
+            DocumentReference canvasRef = _firestoreDb.Collection("canvases").Document(canvas.Id);
+            DocumentSnapshot snapshot = await canvasRef.GetSnapshotAsync();
+
+            if (!snapshot.Exists)
+            {
+                throw new Exception("Canvas not found");
+            }
+
+            // Update timestamp before saving
+            canvas.UpdatedAt = DateTime.UtcNow;
+            
+            await canvasRef.SetAsync(canvas);
+            return canvas;
+        }
     }
 }

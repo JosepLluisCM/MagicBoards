@@ -59,3 +59,17 @@ export async function getCanvas(id: string): Promise<Canvas> {
     throw new Error("Failed to retrieve canvas");
   }
 }
+
+export async function updateCanvas(canvas: Canvas): Promise<Canvas> {
+  try {
+    const response = await apiClient.put(`canvases/${canvas.id}`, canvas);
+    return {
+      ...response.data,
+      createdAt: new Date(response.data.createdAt),
+      updatedAt: new Date(response.data.updatedAt),
+    };
+  } catch (error) {
+    console.error("Error updating canvas:", error);
+    throw new Error("Failed to update canvas");
+  }
+}

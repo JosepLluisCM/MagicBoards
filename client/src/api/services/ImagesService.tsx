@@ -12,7 +12,7 @@ export async function uploadImage(imageFile: File, userId?: string) {
   }
 
   // Send the image to the server
-  const response = await apiClient.post("api/images/upload", formData, {
+  const response = await apiClient.post("images/upload", formData, {
     headers: {
       "Content-Type": "multipart/form-data",
     },
