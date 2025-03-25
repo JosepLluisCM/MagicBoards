@@ -3,23 +3,64 @@ import { Stage, Layer, Image as KonvaImage, Transformer } from "react-konva";
 import Konva from "konva";
 import { useParams, useNavigate } from "react-router-dom";
 import { Box, Flex, Button } from "@chakra-ui/react";
+import { getCanvas } from "../../api/services/CanvasService";
+import { saveCanvasToServer } from "../../api/services/ServerCanvasService";
+import { uploadImage } from "../../api/services/ImagesService";
+import { Canvas as CanvasType } from "../../types";
+import { toaster } from "../../components/ui/toaster";
 
+// Import Position type from types or redefine here to match server-side
+import { Position as ClientPosition } from "../../types";
+
+// Define server-side format interfaces that match the C# models
+interface ServerPosition {
+  X: number;
+  Y: number;
+  x?: number;
+  y?: number;
+}
+
+interface ServerSize {
+  Width: number;
+  Height: number;
+}
+
+interface ServerElementStyle {
+  FillColor: string;
+  BorderColor: string;
+  FontSize: number;
+  Color: string;
+}
+
+// Update the local element interface to better match the server model
 interface CanvasElement {
   id: string;
-  type: "image";
+  type: string;
   src: string;
+  imagePath?: string; // Path to image on the server
   x: number;
   y: number;
   width: number;
   height: number;
   rotation: number;
   isDragging: boolean;
+  // Add fields to match expected structure
+  content?: string;
+  imageId?: string;
+  position?: ServerPosition;
+  size?: ServerSize;
+  style?: ServerElementStyle;
 }
 
 interface CanvasData {
   id: string;
+  userId: string;
   name: string;
   elements: CanvasElement[];
+  createdAt?: Date;
+  updatedAt?: Date;
+  position?: ServerPosition;
+  scale?: number;
 }
 
 interface StagePosition {
@@ -48,57 +89,87 @@ const Canvas = () => {
   });
   const [isPanning, setIsPanning] = useState(false);
   const [isCtrlPressed, setIsCtrlPressed] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Load canvas data from localStorage
+  // Load canvas data from API
   useEffect(() => {
     if (!id) return;
 
-    // First, get the list of canvases to find the name
-    const savedCanvases = localStorage.getItem("canvases");
-    if (savedCanvases) {
+    const fetchCanvasData = async () => {
       try {
-        const allCanvases = JSON.parse(savedCanvases);
-        const currentCanvas = allCanvases.find(
-          (canvas: any) => canvas.id === id
+        const canvas = await getCanvas(id);
+
+        // Convert API elements to our local format
+        const convertedElements: CanvasElement[] = (canvas.elements || []).map(
+          (el: any) => ({
+            id: el.imageId || Date.now().toString(),
+            type: el.type,
+            src: el.imageId
+              ? `${import.meta.env.VITE_API_URL}/images/${el.imageId}`
+              : "",
+            imagePath: el.imageId,
+            // Use position if available, otherwise fallback to direct coordinates
+            x: el.position?.X ?? 0,
+            y: el.position?.Y ?? 0,
+            // Use size if available, otherwise fallback to width/height
+            width: el.size?.Width ?? 100,
+            height: el.size?.Height ?? 100,
+            rotation: el.rotation || 0,
+            isDragging: false,
+            // Keep original fields
+            content: el.content,
+            imageId: el.imageId,
+            position: {
+              X: el.position?.X ?? 0,
+              Y: el.position?.Y ?? 0,
+            },
+            size: {
+              width: el.size?.Width ?? 100,
+              height: el.size?.Height ?? 100,
+              Width: el.size?.Width ?? 100,
+              Height: el.size?.Height ?? 100,
+            },
+            style: el.style,
+          })
         );
 
-        if (currentCanvas) {
-          // Try to load canvas-specific data
-          const canvasDataString = localStorage.getItem(`canvas_data_${id}`);
-          if (canvasDataString) {
-            const parsedData = JSON.parse(canvasDataString);
-
-            // Also load stage position if available
-            const stagePositionString = localStorage.getItem(
-              `canvas_position_${id}`
-            );
-            if (stagePositionString) {
-              try {
-                const parsedPosition = JSON.parse(stagePositionString);
-                setStagePosition(parsedPosition);
-              } catch (error) {
-                console.error("Error parsing stage position:", error);
+        // Set canvas data with consistent X/Y properties
+        setCanvasData({
+          id: canvas.id,
+          userId: canvas.userId,
+          name: canvas.name,
+          elements: convertedElements,
+          createdAt: canvas.createdAt,
+          updatedAt: canvas.updatedAt,
+          position: canvas.position
+            ? {
+                X: canvas.position.X || 0,
+                Y: canvas.position.Y || 0,
               }
-            }
+            : undefined,
+          scale: canvas.scale,
+        });
 
-            setCanvasData({
-              id,
-              name: currentCanvas.name,
-              elements: parsedData.elements || [],
-            });
-          } else {
-            // Initialize new canvas data if none exists
-            setCanvasData({
-              id,
-              name: currentCanvas.name,
-              elements: [],
-            });
-          }
+        // Set stage position if it exists in the canvas data
+        if (canvas.position) {
+          setStagePosition({
+            x: canvas.position.X || 0,
+            y: canvas.position.Y || 0,
+            scale: (canvas.scale || 100) / 100, // Convert percentage scale back to decimal
+          });
         }
       } catch (error) {
-        console.error("Error loading canvas data:", error);
+        console.error("Error fetching canvas data:", error);
+        toaster.create({
+          title: "Error loading canvas",
+          description: "Could not load canvas data from the server.",
+          type: "error",
+          duration: 5000,
+        });
       }
-    }
+    };
+
+    fetchCanvasData();
   }, [id]);
 
   // Load images when canvas data changes
@@ -113,7 +184,15 @@ const Canvas = () => {
     imageElements.forEach((element) => {
       if (!images[element.id]) {
         const img = new Image();
-        img.src = element.src;
+        // If we have a server imagePath, use the API endpoint to get the image
+        if (element.imagePath) {
+          img.src = `${import.meta.env.VITE_API_URL}/images/${
+            element.imagePath
+          }`;
+        } else if (element.src) {
+          // For backwards compatibility or local files not yet uploaded
+          img.src = element.src;
+        }
         newImages[element.id] = img;
       }
     });
@@ -121,27 +200,80 @@ const Canvas = () => {
     if (Object.keys(newImages).length > 0) {
       setImages((prev) => ({ ...prev, ...newImages }));
     }
-  }, [canvasData]);
+  }, [canvasData, images]);
 
   // Save canvas data when it changes
   useEffect(() => {
-    if (canvasData) {
-      const dataToSave = {
-        elements: canvasData.elements,
-      };
-      localStorage.setItem(`canvas_data_${id}`, JSON.stringify(dataToSave));
-    }
-  }, [canvasData, id]);
+    if (!canvasData || isSaving) return;
 
-  // Save stage position when it changes
-  useEffect(() => {
-    if (id) {
-      localStorage.setItem(
-        `canvas_position_${id}`,
-        JSON.stringify(stagePosition)
-      );
-    }
-  }, [stagePosition, id]);
+    const saveTimer = setTimeout(async () => {
+      try {
+        setIsSaving(true);
+
+        // Convert our local elements to the expected API format
+        const apiElements = canvasData.elements.map((el) => ({
+          Type: el.type,
+          Content: el.content || "",
+          ImageId: el.imagePath || el.imageId || "",
+          Position: {
+            X: Math.round(el.x),
+            Y: Math.round(el.y),
+          },
+          Size: {
+            Width: Math.round(el.width),
+            Height: Math.round(el.height),
+          },
+          Style: el.style
+            ? {
+                FillColor: el.style.FillColor || "#000000",
+                BorderColor: el.style.BorderColor || "#000000",
+                FontSize: el.style.FontSize || 16,
+                Color: el.style.Color || "#000000",
+              }
+            : {
+                FillColor: "#000000",
+                BorderColor: "#000000",
+                FontSize: 16,
+                Color: "#000000",
+              },
+        }));
+
+        // Create a Canvas object that matches the expected server type
+        const updatedCanvas = {
+          Id: canvasData.id,
+          UserId: canvasData.userId,
+          Name: canvasData.name,
+          Elements: apiElements,
+          Position: {
+            X: Math.round(stagePosition.x),
+            Y: Math.round(stagePosition.y),
+          },
+          Scale: Math.round(stagePosition.scale * 100), // Scale is stored as percentage in C#
+          CreatedAt: canvasData.createdAt || new Date(),
+          UpdatedAt: new Date(),
+        };
+
+        await saveCanvasToServer(
+          updatedCanvas as any, // Type casting as we know the formats will be converted properly
+          stagePosition.x,
+          stagePosition.y,
+          stagePosition.scale
+        );
+        setIsSaving(false);
+      } catch (error) {
+        console.error("Error saving canvas data:", error);
+        setIsSaving(false);
+        toaster.create({
+          title: "Error saving changes",
+          description: "Could not save canvas changes to the server.",
+          type: "error",
+          duration: 3000,
+        });
+      }
+    }, 1000); // Debounce updates to avoid too many API calls
+
+    return () => clearTimeout(saveTimer);
+  }, [canvasData, stagePosition]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -161,20 +293,21 @@ const Canvas = () => {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || !files.length || !canvasData) return;
 
     const file = files[0];
-    const reader = new FileReader();
 
-    reader.onload = (event: ProgressEvent<FileReader>) => {
-      const result = event.target?.result;
-      if (!result || typeof result !== "string") return;
+    try {
+      // First, upload the image to the server with both userId and canvasId
+      const imagePath = await uploadImage(file, {
+        userId: canvasData.userId,
+        canvasId: canvasData.id,
+      });
 
-      const newElementId = Date.now().toString();
+      // Load the image to get its dimensions
       const img = new Image();
-      img.src = result;
 
       img.onload = () => {
         // Calculate dimensions to fit the image properly
@@ -200,16 +333,17 @@ const Canvas = () => {
         const stageInstance = stageRef.current;
         if (!stageInstance) return;
 
-        const pointerPositionRaw = stageInstance.getPointerPosition();
+        // Get pointer position, or fallback to stage center
+        const pointerPos = stageInstance.getPointerPosition();
         let x, y;
 
-        if (pointerPositionRaw) {
+        if (pointerPos) {
           // If we have a pointer position, place the image there
           const transform = stageInstance
             .getAbsoluteTransform()
             .copy()
             .invert();
-          const pos = transform.point(pointerPositionRaw);
+          const pos = transform.point(pointerPos);
           x = pos.x - width / 2;
           y = pos.y - height / 2;
         } else {
@@ -224,16 +358,34 @@ const Canvas = () => {
             height / 2;
         }
 
+        const newElementId = Date.now().toString();
         const newElement: CanvasElement = {
           id: newElementId,
           type: "image",
-          src: result,
+          imagePath: imagePath, // Store the path from the server
+          imageId: imagePath, // Also store as imageId for API compatibility
+          src: img.src, // We still need this for the image to display locally
           x,
           y,
           width,
           height,
           rotation: 0,
           isDragging: false,
+          // Add required fields for API compatibility in C# format
+          position: {
+            X: Math.round(x),
+            Y: Math.round(y),
+          },
+          size: {
+            Width: Math.round(width),
+            Height: Math.round(height),
+          },
+          style: {
+            FillColor: "#000000",
+            BorderColor: "#000000",
+            FontSize: 16,
+            Color: "#000000",
+          },
         };
 
         // Add the new image to the images state
@@ -248,9 +400,18 @@ const Canvas = () => {
           elements: [...canvasData.elements, newElement],
         });
       };
-    };
 
-    reader.readAsDataURL(file);
+      // Set the source to the API endpoint for the uploaded image
+      img.src = `${import.meta.env.VITE_API_URL}/images/${imagePath}`;
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      toaster.create({
+        title: "Error uploading image",
+        description: "Could not upload the image to the server.",
+        type: "error",
+        duration: 5000,
+      });
+    }
 
     // Reset the file input so the same file can be selected again
     e.target.value = "";
@@ -273,7 +434,18 @@ const Canvas = () => {
     setCanvasData({
       ...canvasData,
       elements: canvasData.elements.map((el) =>
-        el.id === id ? { ...el, x, y, isDragging: false } : el
+        el.id === id
+          ? {
+              ...el,
+              x,
+              y,
+              isDragging: false,
+              position: {
+                X: x,
+                Y: y,
+              },
+            }
+          : el
       ),
     });
   };
@@ -317,6 +489,12 @@ const Canvas = () => {
     const scaleX = node.scaleX();
     const scaleY = node.scaleY();
 
+    const newWidth = Math.abs(node.width() * scaleX);
+    const newHeight = Math.abs(node.height() * scaleY);
+    const newX = node.x();
+    const newY = node.y();
+    const newRotation = node.rotation();
+
     // Update the element with new position, size, and rotation
     setCanvasData({
       ...canvasData,
@@ -324,11 +502,20 @@ const Canvas = () => {
         el.id === id
           ? {
               ...el,
-              x: node.x(),
-              y: node.y(),
-              width: Math.abs(node.width() * scaleX),
-              height: Math.abs(node.height() * scaleY),
-              rotation: node.rotation(),
+              x: newX,
+              y: newY,
+              width: newWidth,
+              height: newHeight,
+              rotation: newRotation,
+              // Update the position and size objects as well
+              position: {
+                X: newX,
+                Y: newY,
+              },
+              size: {
+                Width: newWidth,
+                Height: newHeight,
+              },
             }
           : el
       ),
@@ -481,6 +668,43 @@ const Canvas = () => {
     }
   };
 
+  // Add a function to manually save the canvas
+  const handleSaveCanvas = async () => {
+    try {
+      // Set the loading state
+      setIsSaving(true);
+
+      if (!canvasData) {
+        throw new Error("No canvas data to save");
+      }
+
+      // Use the new service to save with proper conversion
+      await saveCanvasToServer(
+        canvasData as any, // Type casting as we know the formats will be converted properly
+        stagePosition.x,
+        stagePosition.y,
+        stagePosition.scale
+      );
+
+      toaster.create({
+        title: "Canvas saved",
+        description: "Your changes have been saved successfully.",
+        type: "success",
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error("Error saving canvas:", error);
+      toaster.create({
+        title: "Error saving canvas",
+        description: error instanceof Error ? error.message : "Unknown error",
+        type: "error",
+        duration: 5000,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <Box
       width="100vw"
@@ -510,6 +734,14 @@ const Canvas = () => {
         </Button>
         <Button onClick={handleResetView} size="sm" colorScheme="purple">
           Reset View
+        </Button>
+        <Button
+          onClick={handleSaveCanvas}
+          size="sm"
+          colorScheme="green"
+          disabled={isSaving}
+        >
+          {isSaving ? "Saving..." : "Save"}
         </Button>
       </Flex>
 

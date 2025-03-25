@@ -28,11 +28,15 @@ export interface CanvasElement {
 export interface Position {
   x: number;
   y: number;
+  X?: number;
+  Y?: number;
 }
 
 export interface Size {
   width: number;
   height: number;
+  Width?: number;
+  Height?: number;
 }
 
 export interface ElementStyle {
@@ -40,4 +44,8 @@ export interface ElementStyle {
   borderColor: string;
   fontSize: number;
   color: string;
+  FillColor?: string;
+  BorderColor?: string;
+  FontSize?: number;
+  Color?: string;
 }

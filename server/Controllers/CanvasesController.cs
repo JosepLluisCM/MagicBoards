@@ -73,5 +73,19 @@ namespace server.Controllers
                 return StatusCode(500, $"An error occurred: {ex}");
             }
         }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateCanvas(string id, [FromBody] Canvas canvas)
+        {
+            try
+            {
+                Canvas updatedCanvas = await _canvasesService.UpdateCanvasAsync(id, canvas);
+                return Ok(updatedCanvas);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex}");
+            }
+        }
     }
 }
