@@ -1,10 +1,4 @@
-import {
-  Canvas,
-  CanvasElement,
-  Position,
-  Size,
-  ElementStyle,
-} from "../../types";
+import { Canvas } from "../../types";
 import { updateCanvas as apiUpdateCanvas } from "./CanvasService";
 
 // Define server-side canvas interface that matches the C# model

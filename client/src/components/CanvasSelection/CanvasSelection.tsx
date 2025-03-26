@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRef } from "react";
 import {
   Box,
   Button,
@@ -10,112 +9,33 @@ import {
   Input,
   Text,
   VStack,
-  IconButton,
+  Spinner,
   useDisclosure,
   Dialog,
   Portal,
-  Spinner,
 } from "@chakra-ui/react";
-import { LuX as CloseIcon } from "react-icons/lu";
-import {
-  getCanvasesForUser,
-  createCanvas,
-  deleteCanvas,
-  getCanvas,
-} from "@/api/services/CanvasService";
-import { Canvas } from "@/types";
+
+import { useCanvasSelection } from "./hooks/useCanvasSelection";
+import CanvasCard from "./components/CanvasCard";
 
 const CanvasSelection = () => {
-  const navigate = useNavigate();
-  const [canvases, setCanvases] = useState<Canvas[]>([]);
-  const [newCanvasName, setNewCanvasName] = useState("");
-  const [canvasToDelete, setCanvasToDelete] = useState<string | null>(null);
   const { open, onOpen, onClose } = useDisclosure();
   const cancelRef = useRef<HTMLButtonElement>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Load canvases from API on component mount
-  useEffect(() => {
-    const loadCanvases = async () => {
-      setIsLoading(true);
-      try {
-        const loadedCanvases = await getCanvasesForUser();
-        setCanvases(loadedCanvases as Canvas[]);
-        setError(null);
-      } catch (err) {
-        console.error("Error loading canvases:", err);
-        setError("Failed to load canvases. Please try again later.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadCanvases();
-  }, []);
-
-  // No need for the useEffect that saves to localStorage - we're using the API now
-
-  const handleCreateCanvas = async () => {
-    if (!newCanvasName.trim()) return;
-
-    setIsSubmitting(true);
-    try {
-      const newCanvas = await createCanvas(newCanvasName);
-      setCanvases([...canvases, newCanvas]);
-      setNewCanvasName("");
-      setError(null);
-    } catch (err) {
-      console.error("Error creating canvas:", err);
-      setError("Failed to create new canvas. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleDeleteCanvas = async (id: string) => {
-    setIsSubmitting(true);
-    try {
-      await deleteCanvas(id);
-      // Remove the canvas from the state
-      const updatedCanvases = canvases.filter((canvas) => canvas.id !== id);
-      setCanvases(updatedCanvases);
-      setError(null);
-    } catch (err) {
-      console.error("Error deleting canvas:", err);
-      setError("Failed to delete canvas. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-      onClose();
-    }
-  };
-
-  const confirmDelete = (
-    id: string,
-    event: React.MouseEvent<HTMLButtonElement>
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setCanvasToDelete(id);
-    onOpen();
-  };
-
-  const handleOpenCanvas = async (id: string) => {
-    setIsSubmitting(true);
-    try {
-      // Get canvas data before navigation
-      await getCanvas(id);
-      // If successful, navigate to the canvas
-      navigate(`/canvas/${id}`);
-      setError(null);
-    } catch (err) {
-      console.error("Error retrieving canvas:", err);
-      setError("Failed to open canvas. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const {
+    canvases,
+    newCanvasName,
+    setNewCanvasName,
+    canvasToDelete,
+    isLoading,
+    error,
+    isSubmitting,
+    handleCreateCanvas,
+    handleDeleteCanvas,
+    confirmDelete,
+    handleOpenCanvas,
+    handleCancelDelete,
+  } = useCanvasSelection();
 
   return (
     <Container maxW="container.xl" py={8}>
@@ -168,42 +88,13 @@ const CanvasSelection = () => {
               </Box>
             ) : (
               canvases.map((canvas) => (
-                <Box
+                <CanvasCard
                   key={canvas.id}
-                  borderWidth="1px"
-                  borderRadius="lg"
-                  overflow="hidden"
-                  boxShadow="sm"
-                  p={5}
-                >
-                  <Flex
-                    justifyContent="space-between"
-                    alignItems="center"
-                    mb={2}
-                  >
-                    <Heading size="md">{canvas.name}</Heading>
-                    <IconButton
-                      aria-label="Delete Canvas"
-                      size="sm"
-                      variant="ghost"
-                      colorScheme="red"
-                      onClick={(e) => confirmDelete(canvas.id, e)}
-                      disabled={isSubmitting}
-                    >
-                      <CloseIcon />
-                    </IconButton>
-                  </Flex>
-                  <Text mb={4}>
-                    Created: {canvas.createdAt.toLocaleDateString()}
-                  </Text>
-                  <Button
-                    onClick={() => handleOpenCanvas(canvas.id)}
-                    colorScheme="blue"
-                    width="100%"
-                  >
-                    Open Canvas
-                  </Button>
-                </Box>
+                  canvas={canvas}
+                  onOpen={handleOpenCanvas}
+                  onDelete={confirmDelete}
+                  isSubmitting={isSubmitting}
+                />
               ))
             )}
           </Grid>
@@ -212,8 +103,15 @@ const CanvasSelection = () => {
 
       <Dialog.Root
         role="alertdialog"
-        open={open}
-        onOpenChange={(isOpen) => (isOpen ? onOpen() : onClose())}
+        open={open || !!canvasToDelete}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            handleCancelDelete();
+            onClose();
+          } else {
+            onOpen();
+          }
+        }}
       >
         <Portal>
           <Dialog.Backdrop />
@@ -229,7 +127,10 @@ const CanvasSelection = () => {
               <Dialog.Footer>
                 <Button
                   ref={cancelRef}
-                  onClick={onClose}
+                  onClick={() => {
+                    handleCancelDelete();
+                    onClose();
+                  }}
                   variant="outline"
                   disabled={isSubmitting}
                 >
