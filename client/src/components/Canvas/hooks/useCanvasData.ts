@@ -1,14 +1,7 @@
 import { useState, useEffect } from "react";
 import { getCanvas } from "../../../api/services/CanvasService";
 import { saveCanvasToServer } from "../../../api/services/ServerCanvasService";
-import {
-  CanvasData,
-  CanvasElement,
-  StagePosition,
-  Position,
-  Size,
-  ElementStyle,
-} from "../../../types";
+import { CanvasData, CanvasElement, StagePosition } from "../../../types";
 import { toaster } from "../../../components/ui/toaster";
 
 export const useCanvasData = (id: string | undefined) => {
@@ -115,79 +108,6 @@ export const useCanvasData = (id: string | undefined) => {
     fetchCanvasData();
   }, [id]);
 
-  // Save canvas data when it changes
-  useEffect(() => {
-    if (!canvasData || isSaving) return;
-
-    const saveTimer = setTimeout(async () => {
-      try {
-        setIsSaving(true);
-
-        // Convert our local elements to the expected API format
-        const apiElements = canvasData.elements.map((el) => ({
-          Type: el.type,
-          Content: el.content || "",
-          ImageId: el.imagePath || el.imageId || "",
-          Position: {
-            X: Math.round(el.x || 0),
-            Y: Math.round(el.y || 0),
-          },
-          Size: {
-            Width: Math.round(el.width || 0),
-            Height: Math.round(el.height || 0),
-          },
-          Style: el.style
-            ? {
-                FillColor: el.style.FillColor || "#000000",
-                BorderColor: el.style.BorderColor || "#000000",
-                FontSize: el.style.FontSize || 16,
-                Color: el.style.Color || "#000000",
-              }
-            : {
-                FillColor: "#000000",
-                BorderColor: "#000000",
-                FontSize: 16,
-                Color: "#000000",
-              },
-        }));
-
-        // Create a Canvas object that matches the expected server type
-        const updatedCanvas = {
-          Id: canvasData.id,
-          UserId: canvasData.userId,
-          Name: canvasData.name,
-          Elements: apiElements,
-          Position: {
-            X: Math.round(stagePosition.x),
-            Y: Math.round(stagePosition.y),
-          },
-          Scale: Math.round(stagePosition.scale * 100), // Scale is stored as percentage in C#
-          CreatedAt: canvasData.createdAt || new Date(),
-          UpdatedAt: new Date(),
-        };
-
-        await saveCanvasToServer(
-          updatedCanvas as any, // Type casting as we know the formats will be converted properly
-          stagePosition.x,
-          stagePosition.y,
-          stagePosition.scale
-        );
-        setIsSaving(false);
-      } catch (error) {
-        console.error("Error saving canvas data:", error);
-        setIsSaving(false);
-        toaster.create({
-          title: "Error saving changes",
-          description: "Could not save canvas changes to the server.",
-          type: "error",
-          duration: 3000,
-        });
-      }
-    }, 1000); // Debounce updates to avoid too many API calls
-
-    return () => clearTimeout(saveTimer);
-  }, [canvasData, stagePosition]);
-
   // Function to manually save the canvas
   const saveCanvas = async () => {
     try {
@@ -198,9 +118,73 @@ export const useCanvasData = (id: string | undefined) => {
         throw new Error("No canvas data to save");
       }
 
-      // Use the new service to save with proper conversion
+      if (!canvasData.id) {
+        console.error("Canvas data is missing ID:", canvasData);
+        throw new Error("Canvas ID is missing");
+      }
+
+      console.log("Canvas data before saving:", canvasData);
+      console.log("Canvas ID:", canvasData.id);
+
+      // Convert our local elements to the expected API format
+      const apiElements = canvasData.elements.map((el) => ({
+        Type: el.type,
+        Content: el.content || "",
+        ImageId: el.imagePath || el.imageId || "",
+        Position: {
+          X: Math.round(el.x || 0),
+          Y: Math.round(el.y || 0),
+        },
+        Size: {
+          Width: Math.round(el.width || 0),
+          Height: Math.round(el.height || 0),
+        },
+        Style: el.style
+          ? {
+              FillColor: el.style.FillColor || "#000000",
+              BorderColor: el.style.BorderColor || "#000000",
+              FontSize: el.style.FontSize || 16,
+              Color: el.style.Color || "#000000",
+            }
+          : {
+              FillColor: "#000000",
+              BorderColor: "#000000",
+              FontSize: 16,
+              Color: "#000000",
+            },
+      }));
+
+      // Create a Canvas object that matches the expected server type
+      const updatedCanvas = {
+        id: canvasData.id, // Lowercase id property for the internal object
+        Id: canvasData.id, // Uppercase Id for the server format
+        userId: canvasData.userId,
+        UserId: canvasData.userId,
+        name: canvasData.name,
+        Name: canvasData.name,
+        elements: canvasData.elements, // Keep original elements for reference
+        Elements: apiElements, // Formatted elements for the server
+        position: {
+          x: Math.round(stagePosition.x),
+          y: Math.round(stagePosition.y),
+        },
+        Position: {
+          X: Math.round(stagePosition.x),
+          Y: Math.round(stagePosition.y),
+        },
+        scale: Math.round(stagePosition.scale * 100),
+        Scale: Math.round(stagePosition.scale * 100),
+        createdAt: canvasData.createdAt || new Date(),
+        CreatedAt: canvasData.createdAt || new Date(),
+        updatedAt: new Date(),
+        UpdatedAt: new Date(),
+      };
+
+      console.log("Updated canvas before sending:", updatedCanvas);
+
+      // Use the service to save with proper conversion
       await saveCanvasToServer(
-        canvasData as any, // Type casting as we know the formats will be converted properly
+        updatedCanvas as any, // Type casting as we know the formats will be converted properly
         stagePosition.x,
         stagePosition.y,
         stagePosition.scale
