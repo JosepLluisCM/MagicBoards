@@ -13,63 +13,53 @@ namespace server.Models
     public class Image
     {
         [FirestoreProperty]
-        public string Id { get; set; }
+        public required string Id { get; set; }
 
         [FirestoreProperty]
-        public string CanvasId { get; set; }
+        public required ImageType Type { get; set; }
 
         [FirestoreProperty]
-        public string ImageUrl { get; set; }
+        public required string ImageUrl { get; set; }
 
         [FirestoreProperty]
-        public string Type { get; set; }
+        public required string CanvasId { get; set; }
 
         [FirestoreProperty]
-        public DateTime CreatedAt { get; set; }
+        public required string UserId { get; set; }
 
         [FirestoreProperty]
-        public DateTime UpdatedAt { get; set; }
+        public required DateTime CreatedAt { get; set; }
 
         [FirestoreProperty]
-        public string CreatedBy { get; set; } // UserId
+        public required DateTime UpdatedAt { get; set; }
 
         [FirestoreProperty]
-        public string UpdatedBy { get; set; } // UserId
+        public ImageMetadata? Metadata { get; set; }
 
-        [FirestoreProperty]
-        public Metadata Metadata { get; set; }
+        public static Image CreateNew(string id, string userId, string canvasId, ImageType type, string imageUrl)
+        {
+            return new Image
+            {
+                Id = id,
+                Type = type,
+                ImageUrl = imageUrl,
+                CanvasId = canvasId,
+                UserId = userId,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                Metadata = null
+            };
+        }
     }
 
     [FirestoreData]
-    public class Metadata
+    public class ImageMetadata
     {
         [FirestoreProperty]
-        public Size Size { get; set; }
-
+        public string? Format { get; set; }
         [FirestoreProperty]
-        public string Format { get; set; }
-
-        [FirestoreProperty]
-        public string Prompt { get; set; }
-
-        [FirestoreProperty]
-        public string Model { get; set; }
-
-        [FirestoreProperty]
-        public Parameters Parameters { get; set; }
-
+        public string? OriginalSize { get; set; }
     }
 
-    [FirestoreData]
-    public class Parameters
-    {
-        [FirestoreProperty]
-        public string Seed { get; set; }
 
-        [FirestoreProperty]
-        public string Steps { get; set; }
-
-        [FirestoreProperty]
-        public string Style { get; set; }
-    }
 }

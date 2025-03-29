@@ -79,5 +79,17 @@ namespace server.Services
                 throw new Exception($"Failed to retrieve image: {ex.Message}", ex);
             }
         }
+
+        public async Task DeleteImageAsync(string imagePath)
+        {
+        
+                DeleteObjectRequest deleteObjectRequest = new DeleteObjectRequest
+                {
+                    BucketName = _bucketName,
+                    Key = imagePath
+                };
+
+                await _s3Client.DeleteObjectAsync(deleteObjectRequest);
+        }
     }
 }

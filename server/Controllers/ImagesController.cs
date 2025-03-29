@@ -55,5 +55,24 @@ namespace server.Controllers
                 return NotFound($"Image not found: {imagePath}");
             }
         }
+
+        [HttpDelete("{*imagePath}")]
+        public async Task<IActionResult> DeleteImage(string imagePath)
+        {
+            try
+            {
+                string formattedPath = System.Net.WebUtility.UrlDecode(imagePath);
+                await _imagesService.DeleteImageAsync(formattedPath);
+
+                return Ok(new { 
+                    message = "Image deleted successfully", 
+                    imagePath = formattedPath 
+        });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
     }
 }

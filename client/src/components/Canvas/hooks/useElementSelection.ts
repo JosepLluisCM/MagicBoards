@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import Konva from "konva";
 import { CanvasData, CanvasElement } from "../../../types";
+import { deleteImage } from "../../../api/services/ImagesService";
 
 export const useElementSelection = (
   canvasData: CanvasData | null,
@@ -173,13 +174,34 @@ export const useElementSelection = (
     }
   };
 
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = async () => {
     if (canvasData && selectedId) {
-      setCanvasData({
-        ...canvasData,
-        elements: canvasData.elements.filter((el) => el.id !== selectedId),
-      });
-      setSelectedId(null);
+      // Find the element to be deleted
+      const elementToDelete = canvasData.elements.find(
+        (el) => el.id === selectedId
+      );
+
+      try {
+        // If it's an image, delete it from the server first
+        if (elementToDelete?.type === "image" && elementToDelete.imagePath) {
+          await deleteImage(elementToDelete.imagePath);
+        }
+
+        // Then remove from canvas data
+        setCanvasData({
+          ...canvasData,
+          elements: canvasData.elements.filter((el) => el.id !== selectedId),
+        });
+        setSelectedId(null);
+      } catch (error) {
+        console.error("Failed to delete image:", error);
+        // Still remove from canvas even if server deletion fails
+        setCanvasData({
+          ...canvasData,
+          elements: canvasData.elements.filter((el) => el.id !== selectedId),
+        });
+        setSelectedId(null);
+      }
     }
   };
 

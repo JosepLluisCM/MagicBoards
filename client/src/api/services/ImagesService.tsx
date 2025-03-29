@@ -32,3 +32,10 @@ export async function uploadImage(
 
   return response.data.imagePath;
 }
+
+export async function deleteImage(imagePath: string) {
+  const response = await apiClient.delete(
+    `images/${encodeURIComponent(imagePath)}`
+  );
+  return response.data;
+}
