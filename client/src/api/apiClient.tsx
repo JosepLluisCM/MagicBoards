@@ -1,9 +1,13 @@
 import axios from "axios";
 
-console.log("API_URL:", import.meta.env.VITE_API_URL); // Debugging
+// Verify that the API URL environment variable exists
+const apiUrl = import.meta.env.VITE_API_URL;
+if (!apiUrl) {
+  throw new Error("VITE_API_URL environment variable is not defined");
+}
 
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "https://localhost:5001/api", // Fallback
+  baseURL: apiUrl,
   timeout: 5000,
   headers: {
     "Content-Type": "application/json",

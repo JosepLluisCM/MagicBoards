@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Box, Flex } from "@chakra-ui/react";
 import Canvas from "./components/Canvas/Canvas";
 import CanvasSelection from "./components/CanvasSelection/CanvasSelection";
@@ -12,6 +12,10 @@ function App() {
       </Flex>
       <BrowserRouter>
         <Routes>
+          <Route
+            path="/"
+            element={<Navigate to="/canvas-selection" replace />}
+          />
           <Route path="/canvas-selection" element={<CanvasSelection />} />
           <Route path="/canvas/:id" element={<Canvas />} />
         </Routes>
