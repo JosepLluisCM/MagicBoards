@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { uploadImage } from "../../../api/services/ImagesService";
 import { CanvasData, CanvasElement } from "../../../types";
-import { toaster } from "../../../components/ui/toaster";
+import { toast } from "sonner";
 
 export const useImages = (
   canvasData: CanvasData | null,
@@ -134,10 +134,8 @@ export const useImages = (
       img.src = `${import.meta.env.VITE_API_URL}/images/${imagePath}`;
     } catch (error) {
       console.error("Error uploading image:", error);
-      toaster.create({
-        title: "Error uploading image",
+      toast.error("Error uploading image", {
         description: "Could not upload the image to the server.",
-        type: "error",
         duration: 5000,
       });
     }

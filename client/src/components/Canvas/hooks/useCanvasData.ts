@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { getCanvas } from "../../../api/services/CanvasService";
 import { saveCanvasToServer } from "../../../api/services/ServerCanvasService";
 import { CanvasData, CanvasElement, StagePosition } from "../../../types";
-import { toaster } from "../../../components/ui/toaster";
+import { toast } from "sonner";
 
 export const useCanvasData = (id: string | undefined) => {
   const [canvasData, setCanvasData] = useState<CanvasData | null>(null);
@@ -96,10 +96,8 @@ export const useCanvasData = (id: string | undefined) => {
         }
       } catch (error) {
         console.error("Error fetching canvas data:", error);
-        toaster.create({
-          title: "Error loading canvas",
+        toast.error("Error loading canvas", {
           description: "Could not load canvas data from the server.",
-          type: "error",
           duration: 5000,
         });
       }
@@ -190,18 +188,14 @@ export const useCanvasData = (id: string | undefined) => {
         stagePosition.scale
       );
 
-      toaster.create({
-        title: "Canvas saved",
+      toast.success("Canvas saved", {
         description: "Your changes have been saved successfully.",
-        type: "success",
         duration: 3000,
       });
     } catch (error) {
       console.error("Error saving canvas:", error);
-      toaster.create({
-        title: "Error saving canvas",
+      toast.error("Error saving canvas", {
         description: error instanceof Error ? error.message : "Unknown error",
-        type: "error",
         duration: 5000,
       });
     } finally {
