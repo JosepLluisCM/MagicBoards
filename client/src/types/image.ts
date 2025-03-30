@@ -1,4 +1,4 @@
-import { Size } from "./canvas";
+// models/image.ts
 
 export enum ImageType {
   Uploaded = "Uploaded",
@@ -7,26 +7,16 @@ export enum ImageType {
 
 export interface Image {
   id: string;
-  canvasId: string;
+  type: ImageType;
   imageUrl: string;
-  type: string;
-  createdAt: Date;
-  updatedAt: Date;
-  createdBy: string; // UserId
-  updatedBy: string; // UserId
-  metadata: Metadata;
+  canvasId: string;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+  metadata?: ImageMetadata; // Optional
 }
 
-export interface Metadata {
-  size: Size;
-  format: string;
-  prompt: string;
-  model: string;
-  parameters: Parameters;
-}
-
-export interface Parameters {
-  seed: string;
-  steps: string;
-  style: string;
+export interface ImageMetadata {
+  format?: string;
+  originalSize?: string;
 }

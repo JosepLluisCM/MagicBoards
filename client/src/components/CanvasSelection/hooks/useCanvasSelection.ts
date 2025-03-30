@@ -6,11 +6,12 @@ import {
   deleteCanvas,
   getCanvas,
 } from "../../../api/services/CanvasService";
-import { Canvas } from "../../../types";
+import { Canvas } from "../../../types/canvas";
+import { CanvasListItem } from "@/types/CanvasListItem";
 
 export const useCanvasSelection = () => {
   const navigate = useNavigate();
-  const [canvases, setCanvases] = useState<Canvas[]>([]);
+  const [canvases, setCanvases] = useState<CanvasListItem[]>([]);
   const [newCanvasName, setNewCanvasName] = useState("");
   const [canvasToDelete, setCanvasToDelete] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -23,7 +24,7 @@ export const useCanvasSelection = () => {
       setIsLoading(true);
       try {
         const loadedCanvases = await getCanvasesForUser();
-        setCanvases(loadedCanvases as Canvas[]);
+        setCanvases(loadedCanvases as CanvasListItem[]);
         setError(null);
       } catch (err) {
         console.error("Error loading canvases:", err);

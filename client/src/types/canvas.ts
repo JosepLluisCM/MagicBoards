@@ -1,97 +1,51 @@
-export enum ShapeType {
-  Text = "Text",
+// models/canvas.ts
+
+export enum CanvasElementType {
   Image = "Image",
+  Text = "Text",
 }
 
 export interface Canvas {
   id: string;
-  userId: string;
   name: string;
-  createdAt: Date;
-  updatedAt: Date;
-  position: Position;
-  scale: number;
+  data: CanvasData;
   elements: CanvasElement[];
-}
-
-export interface CanvasElement {
-  id?: string;
-  type: string;
-  // Text-specific properties
-  content?: string;
-  // Image-specific properties
-  imageId?: string;
-  imagePath?: string;
-  src?: string;
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
-  rotation?: number;
-  isDragging?: boolean;
-  position: Position;
-  size: Size;
-  style: ElementStyle;
-}
-
-export interface Position {
-  x: number;
-  y: number;
-  X?: number;
-  Y?: number;
-}
-
-export interface Size {
-  width: number;
-  height: number;
-  Width?: number;
-  Height?: number;
-}
-
-export interface ElementStyle {
-  fillColor: string;
-  borderColor: string;
-  fontSize: number;
-  color: string;
-  FillColor?: string;
-  BorderColor?: string;
-  FontSize?: number;
-  Color?: string;
-}
-
-// Canvas component types
-export interface ServerPosition {
-  X: number;
-  Y: number;
-  x?: number;
-  y?: number;
-}
-
-export interface ServerSize {
-  Width: number;
-  Height: number;
-}
-
-export interface ServerElementStyle {
-  FillColor: string;
-  BorderColor: string;
-  FontSize: number;
-  Color: string;
+  userId: string;
+  createdAt: string; // Using string for DateTime
+  updatedAt: string;
 }
 
 export interface CanvasData {
-  id: string;
-  userId: string;
-  name: string;
-  elements: CanvasElement[];
-  createdAt?: Date;
-  updatedAt?: Date;
-  position?: ServerPosition;
-  scale?: number;
+  position: CanvasPosition;
+  scale: number;
 }
 
-export interface StagePosition {
+export interface CanvasPosition {
   x: number;
   y: number;
-  scale: number;
+}
+
+export interface CanvasElement {
+  id: string;
+  type: CanvasElementType;
+  data: CanvasElementData;
+  content: string;
+  imageId: string;
+}
+
+export interface CanvasElementData {
+  position: CanvasElementPosition;
+  size: CanvasElementSize;
+  rotation: number;
+}
+
+export interface CanvasElementPosition {
+  x: number;
+  y: number;
+  zIndex: number;
+}
+
+export interface CanvasElementSize {
+  width: number;
+  height: number;
 }

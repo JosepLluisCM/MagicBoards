@@ -2,6 +2,6 @@ namespace server.Models.Requests
 {
     public class CreateCanvasRequest
     {
-        public string? Name { get; set; }
+        public required string Name { get; set; }
     }
 }

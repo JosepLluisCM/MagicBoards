@@ -21,7 +21,7 @@ namespace server.Controllers
         {
             try
             {
-                List<object> canvasList = await _canvasesService.GetCanvasesForUserAsync();
+                List<CanvasListItem> canvasList = await _canvasesService.GetCanvasesForUserAsync();
                 return Ok(canvasList);
             }
             catch (Exception ex)
@@ -35,7 +35,7 @@ namespace server.Controllers
         {
             try
             {
-                Canvas newCanvas = await _canvasesService.CreateCanvasAsync(request.Name);
+                Canvas newCanvas = await _canvasesService.CreateCanvasAsync(request);
                 return Ok(newCanvas);
             }
             catch (Exception ex)

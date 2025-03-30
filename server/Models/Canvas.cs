@@ -15,7 +15,6 @@ namespace server.Models
         [FirestoreProperty]
         public required string Id { get; set; }
 
-
         [FirestoreProperty]
         public required string Name { get; set; }
 
@@ -76,6 +75,9 @@ namespace server.Models
     public class CanvasElement
     {
         //COMMON
+        [FirestoreProperty]
+        public required string Id { get; set; }
+        
         [FirestoreProperty]
         public required CanvasElementType Type { get; set; }
 

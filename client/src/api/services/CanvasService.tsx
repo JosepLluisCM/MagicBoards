@@ -1,5 +1,5 @@
 import apiClient from "../apiClient";
-import { Canvas } from "../../types";
+import { Canvas } from "../../types/canvas";
 
 // Define server-side canvas interface that matches the C# model
 interface ServerCanvas {
@@ -42,11 +42,7 @@ interface ServerCanvas {
 export async function createCanvas(name: string): Promise<Canvas> {
   try {
     const response = await apiClient.post("canvases", { name });
-    return {
-      ...response.data,
-      createdAt: new Date(response.data.createdAt),
-      updatedAt: new Date(response.data.updatedAt),
-    };
+    return response.data;
   } catch (error) {
     console.error("Error creating canvas:", error);
     throw new Error("Failed to create canvas");

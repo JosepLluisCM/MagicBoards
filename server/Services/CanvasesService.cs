@@ -1,5 +1,6 @@
 ﻿using Google.Cloud.Firestore;
 using server.Models;
+using server.Models.Requests;
 
 namespace server.Services
 {
@@ -14,26 +15,28 @@ namespace server.Services
             _firestoreDb = _firestoreService.GetFirestoreDb();
         }
 
-        public async Task<List<object>> GetCanvasesForUserAsync()
+        public async Task<List<CanvasListItem>> GetCanvasesForUserAsync()
         {
             CollectionReference canvasesRef = _firestoreDb.Collection("canvases");
             QuerySnapshot snapshot = await canvasesRef.GetSnapshotAsync();
 
-            List<object> result = snapshot.Documents.Select(doc => new
+            List<CanvasListItem> result = snapshot.Documents.Select(doc => new CanvasListItem
             {
                 Id = doc.Id,
                 Name = doc.GetValue<string>("Name"),
-                UserId = doc.GetValue<string>("UserId")
-            }).ToList<object>();
+                UserId = doc.GetValue<string>("UserId"),
+                CreatedAt = doc.GetValue<DateTime>("CreatedAt"),
+                UpdatedAt = doc.GetValue<DateTime>("UpdatedAt")
+            }).ToList();
 
             return result;
         }
 
-        public async Task<Canvas> CreateCanvasAsync(string? id)
+        public async Task<Canvas> CreateCanvasAsync(CreateCanvasRequest request)
         {
             DocumentReference addedDocRef = _firestoreDb.Collection("canvases").Document();
 
-            Canvas newCanvas = Canvas.CreateNew(addedDocRef.Id, "ADMIN", id ?? "Untitled Canvas");
+            Canvas newCanvas = Canvas.CreateNew(addedDocRef.Id, "ADMIN", request.Name ?? "Untitled Canvas");
 
             await addedDocRef.SetAsync(newCanvas);
 
