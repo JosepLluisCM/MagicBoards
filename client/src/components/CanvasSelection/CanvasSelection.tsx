@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { useCanvasSelection } from "./hooks/useCanvasSelection";
-import CanvasCard from "./components/CanvasCard";
+import CanvasCard from "./CanvasCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
