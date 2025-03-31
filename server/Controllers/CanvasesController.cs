@@ -45,12 +45,12 @@ namespace server.Controllers
             
         }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteCanvas(string id)
+        [HttpDelete("{canvasId}")]
+        public async Task<IActionResult> DeleteCanvas(string canvasId)
         {
             try
             {
-                await _canvasesService.DeleteCanvasAsync(id);
+                await _canvasesService.DeleteCanvasAsync(canvasId);
                 return Ok();
             }
             catch (Exception ex)
@@ -60,12 +60,12 @@ namespace server.Controllers
             
         }
 
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetCanvas(string id)
+        [HttpGet("{canvasId}")]
+        public async Task<IActionResult> GetCanvas(string canvasId)
         {
             try
             {
-                Canvas canvas = await _canvasesService.GetCanvasAsync(id);
+                Canvas canvas = await _canvasesService.GetCanvasAsync(canvasId);
                 return Ok(canvas);
             }
             catch (Exception ex)
@@ -74,12 +74,12 @@ namespace server.Controllers
             }
         }
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateCanvas(string id, [FromBody] Canvas canvas)
+        [HttpPut("{canvasId}")]
+        public async Task<IActionResult> UpdateCanvas(string canvasId, [FromBody] Canvas canvas)
         {
             try
             {
-                Canvas updatedCanvas = await _canvasesService.UpdateCanvasAsync(id, canvas);
+                Canvas updatedCanvas = await _canvasesService.UpdateCanvasAsync(canvasId, canvas);
                 return Ok(updatedCanvas);
             }
             catch (Exception ex)

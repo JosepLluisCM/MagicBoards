@@ -22,8 +22,9 @@ if (string.IsNullOrEmpty(r2CredPath) || !File.Exists(r2CredPath))
 // Register FirestoreService as a singleton
 builder.Services.AddSingleton<FirestoreService>();
 builder.Services.AddSingleton<R2CloudflareService>();
-builder.Services.AddSingleton<CanvasesService>();
 builder.Services.AddSingleton<ImagesService>();
+builder.Services.AddSingleton<CanvasesService>();
+
 
 
 builder.Services.AddControllers();

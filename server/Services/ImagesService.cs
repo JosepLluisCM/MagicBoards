@@ -91,5 +91,27 @@ namespace server.Services
 
                 await _s3Client.DeleteObjectAsync(deleteObjectRequest);
         }
+
+        public async Task DeleteAllCanvasImagesAsync(string userId, string canvasId)
+        {
+            string prefix = $"{userId}/{canvasId}/";
+
+            var listResponse = await _s3Client.ListObjectsV2Async(new ListObjectsV2Request
+            {
+                BucketName = _bucketName,
+                Prefix = prefix
+            });
+            
+            if (listResponse.S3Objects.Count == 0)
+                return; // Nothing to delete
+                
+            var deleteRequest = new DeleteObjectsRequest
+            {
+                BucketName = _bucketName,
+                Objects = listResponse.S3Objects.Select(obj => new KeyVersion { Key = obj.Key }).ToList()
+            };
+            
+            await _s3Client.DeleteObjectsAsync(deleteRequest);
+        }
     }
 }

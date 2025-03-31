@@ -8,11 +8,13 @@ namespace server.Services
     {
         private readonly FirestoreService _firestoreService;
         private readonly FirestoreDb _firestoreDb;
+        private readonly ImagesService _imagesService;
 
-        public CanvasesService(FirestoreService firestoreService)
+        public CanvasesService(FirestoreService firestoreService, ImagesService imagesService)
         {
             _firestoreService = firestoreService;
             _firestoreDb = _firestoreService.GetFirestoreDb();
+            _imagesService = imagesService;
         }
 
         public async Task<List<CanvasListItem>> GetCanvasesForUserAsync()
@@ -43,16 +45,36 @@ namespace server.Services
             return newCanvas;
         }
 
-        public async Task DeleteCanvasAsync(string id)
+        public async Task DeleteCanvasAsync(string canvasId)
         {
-            DocumentReference deletedDocRef = _firestoreDb.Collection("canvases").Document(id);
-
-            await deletedDocRef.DeleteAsync();
+            // First get the canvas to retrieve the userId
+            DocumentReference canvasRef = _firestoreDb.Collection("canvases").Document(canvasId);
+            DocumentSnapshot snapshot = await canvasRef.GetSnapshotAsync();
+            
+            if (!snapshot.Exists)
+            {
+                throw new Exception("Canvas not found");
+            }
+            
+            var canvas = snapshot.ConvertTo<Canvas>();
+            string userId = canvas.UserId;
+            
+            try
+            {
+                // Delete all images associated with this canvas
+                await _imagesService.DeleteAllCanvasImagesAsync(userId, canvasId);
+                
+                await canvasRef.DeleteAsync();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error deleting canvas: ", ex);
+            }
         }
 
-        public async Task<Canvas> GetCanvasAsync(string? id)
+        public async Task<Canvas> GetCanvasAsync(string canvasId)
         {
-            DocumentReference canvasRef = _firestoreDb.Collection("canvases").Document(id);
+            DocumentReference canvasRef = _firestoreDb.Collection("canvases").Document(canvasId);
             DocumentSnapshot snapshot = await canvasRef.GetSnapshotAsync();
 
             if (!snapshot.Exists)
@@ -63,9 +85,9 @@ namespace server.Services
             return snapshot.ConvertTo<Canvas>();
         }
 
-        public async Task<Canvas> UpdateCanvasAsync(string id, Canvas canvas)
+        public async Task<Canvas> UpdateCanvasAsync(string canvasId, Canvas canvas)
         {
-            DocumentReference canvasRef = _firestoreDb.Collection("canvases").Document(canvas.Id);
+            DocumentReference canvasRef = _firestoreDb.Collection("canvases").Document(canvasId);
             DocumentSnapshot snapshot = await canvasRef.GetSnapshotAsync();
 
             if (!snapshot.Exists)
