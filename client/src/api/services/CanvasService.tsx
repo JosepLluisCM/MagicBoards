@@ -1,5 +1,6 @@
 import apiClient from "../apiClient";
 import { Canvas } from "../../types/canvas";
+import { CanvasListItem } from "../../types/CanvasListItem";
 
 // Define server-side canvas interface that matches the C# model
 interface ServerCanvas {
@@ -49,17 +50,12 @@ export async function createCanvas(name: string): Promise<Canvas> {
   }
 }
 
-export async function getCanvasesForUser(): Promise<Object[]> {
+export async function getCanvasesForUser(): Promise<CanvasListItem[]> {
   try {
     const response = await apiClient.get("canvases");
-    return response.data.map((canvas: any) => ({
-      ...canvas,
-      createdAt: new Date(canvas.createdAt),
-      updatedAt: new Date(canvas.updatedAt),
-    }));
+    return response.data;
   } catch (error) {
     console.error("Error fetching canvases:", error);
-    // You can transform technical errors into domain-specific ones
     throw new Error("Failed to retrieve canvases");
   }
 }
@@ -77,11 +73,7 @@ export async function deleteCanvas(id: string): Promise<any> {
 export async function getCanvas(id: string): Promise<Canvas> {
   try {
     const response = await apiClient.get(`canvases/${id}`);
-    return {
-      ...response.data,
-      createdAt: new Date(response.data.createdAt),
-      updatedAt: new Date(response.data.updatedAt),
-    };
+    return response.data;
   } catch (error) {
     console.error("Error fetching canvas:", error);
     // You can transform technical errors into domain-specific ones

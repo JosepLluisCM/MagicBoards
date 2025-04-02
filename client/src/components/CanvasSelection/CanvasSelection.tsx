@@ -18,7 +18,7 @@ const CanvasSelection = () => {
   const cancelRef = useRef<HTMLButtonElement>(null);
 
   const {
-    canvases,
+    canvasesList,
     newCanvasName,
     setNewCanvasName,
     canvasToDelete,
@@ -65,14 +65,14 @@ const CanvasSelection = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 w-full">
-            {canvases.length === 0 ? (
+            {canvasesList.length === 0 ? (
               <div className="text-center col-span-full">
                 <p className="text-lg">
                   No canvases found. Create your first canvas above.
                 </p>
               </div>
             ) : (
-              canvases.map((canvas) => (
+              canvasesList.map((canvas) => (
                 <CanvasCard
                   key={canvas.id}
                   canvas={canvas}

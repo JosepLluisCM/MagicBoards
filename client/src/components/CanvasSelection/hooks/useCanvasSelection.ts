@@ -6,12 +6,11 @@ import {
   deleteCanvas,
   getCanvas,
 } from "../../../api/services/CanvasService";
-import { Canvas } from "../../../types/canvas";
 import { CanvasListItem } from "@/types/CanvasListItem";
 
 export const useCanvasSelection = () => {
   const navigate = useNavigate();
-  const [canvases, setCanvases] = useState<CanvasListItem[]>([]);
+  const [canvasesList, setCanvasesList] = useState<CanvasListItem[]>([]);
   const [newCanvasName, setNewCanvasName] = useState("");
   const [canvasToDelete, setCanvasToDelete] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -24,7 +23,13 @@ export const useCanvasSelection = () => {
       setIsLoading(true);
       try {
         const loadedCanvases = await getCanvasesForUser();
-        setCanvases(loadedCanvases as CanvasListItem[]);
+        // Sort canvases by updatedAt date in descending order (newest first)
+        const sortedCanvases = [...loadedCanvases].sort((a, b) => {
+          return (
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+          );
+        });
+        setCanvasesList(sortedCanvases as CanvasListItem[]);
         setError(null);
       } catch (err) {
         console.error("Error loading canvases:", err);
@@ -43,7 +48,12 @@ export const useCanvasSelection = () => {
     setIsSubmitting(true);
     try {
       const newCanvas = await createCanvas(newCanvasName);
-      setCanvases([...canvases, newCanvas]);
+      // Add new canvas and re-sort the list to ensure the most recently updated is at the top
+      const updatedList = [...canvasesList, newCanvas as CanvasListItem].sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+      );
+      setCanvasesList(updatedList);
       setNewCanvasName("");
       setError(null);
     } catch (err) {
@@ -58,10 +68,17 @@ export const useCanvasSelection = () => {
     setIsSubmitting(true);
     try {
       await deleteCanvas(id);
-      // Remove the canvas from the state
-      const updatedCanvases = canvases.filter((canvas) => canvas.id !== id);
-      setCanvases(updatedCanvases);
+      // Remove the canvas from the state and ensure sorting is maintained
+      const updatedCanvases = canvasesList
+        .filter((canvas) => canvas.id !== id)
+        .sort(
+          (a, b) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        );
+      setCanvasesList(updatedCanvases);
       setError(null);
+      // Clear the canvas to delete after successful deletion
+      setCanvasToDelete(null);
     } catch (err) {
       console.error("Error deleting canvas:", err);
       setError("Failed to delete canvas. Please try again.");
@@ -76,6 +93,7 @@ export const useCanvasSelection = () => {
   ) => {
     event.preventDefault();
     event.stopPropagation();
+    // Only set the ID to delete - actual deletion happens after confirmation
     setCanvasToDelete(id);
   };
 
@@ -100,7 +118,7 @@ export const useCanvasSelection = () => {
   };
 
   return {
-    canvases,
+    canvasesList,
     newCanvasName,
     setNewCanvasName,
     canvasToDelete,

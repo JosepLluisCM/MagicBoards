@@ -8,6 +8,7 @@ export function formatDate(dateString: string) {
     return "";
   }
 
+  // Use browser's locale for date formatting
   const dateFormatted = date.toLocaleDateString();
   const timeFormatted = date.toLocaleTimeString();
 

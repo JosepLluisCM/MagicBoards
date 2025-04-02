@@ -7,10 +7,11 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { X } from "lucide-react";
-import { Canvas } from "../../types";
+import { CanvasListItem } from "@/types/CanvasListItem";
+import { formatDate } from "@/utils/timeUtils";
 
 interface CanvasCardProps {
-  canvas: Canvas;
+  canvas: CanvasListItem;
   onOpen: (id: string) => void;
   onDelete: (id: string, event: React.MouseEvent<HTMLButtonElement>) => void;
   isSubmitting: boolean;
@@ -22,16 +23,18 @@ const CanvasCard: React.FC<CanvasCardProps> = ({
   onDelete,
   isSubmitting,
 }) => {
+  const { id, name, createdAt, updatedAt, userId } = canvas;
+
   return (
-    <Card key={canvas.id} className="shadow-sm overflow-hidden">
+    <Card key={id} className="shadow-sm overflow-hidden">
       <CardHeader className="pb-2">
         <div className="flex justify-between items-center">
-          <h3 className="text-lg font-semibold">{canvas.name}</h3>
+          <h3 className="text-lg font-semibold">{name}</h3>
           <Button
             variant="ghost"
             size="icon"
             className="text-red-500 hover:text-red-700 hover:bg-red-100 h-8 w-8"
-            onClick={(e) => onDelete(canvas.id, e)}
+            onClick={(e) => onDelete(id, e)}
             disabled={isSubmitting}
             aria-label="Delete Canvas"
           >
@@ -40,12 +43,14 @@ const CanvasCard: React.FC<CanvasCardProps> = ({
         </div>
       </CardHeader>
       <CardContent>
-        <p className="mb-4 text-sm text-muted-foreground">
-          Created: {new Date(canvas.createdAt).toLocaleDateString()}
-        </p>
+        <div className="space-y-2 text-sm text-muted-foreground">
+          <p>User: {userId}</p>
+          <p>Created: {formatDate(createdAt)}</p>
+          <p>Updated: {formatDate(updatedAt)}</p>
+        </div>
       </CardContent>
       <CardFooter>
-        <Button onClick={() => onOpen(canvas.id)} className="w-full">
+        <Button onClick={() => onOpen(id)} className="w-full">
           Open Canvas
         </Button>
       </CardFooter>
