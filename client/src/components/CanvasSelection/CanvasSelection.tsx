@@ -98,8 +98,8 @@ const CanvasSelection = () => {
           <DialogHeader>
             <DialogTitle>Delete Canvas</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this canvas? This action cannot be
-              undone.
+              Are you sure you want to delete this canvas? You Will lose all
+              your images inside.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
