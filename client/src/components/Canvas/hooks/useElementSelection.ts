@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import Konva from "konva";
-import { CanvasData, CanvasElement } from "../../../types";
+import { Canvas, CanvasElement } from "../../../types/canvas";
 import { deleteImage } from "../../../api/services/ImagesService";
 
 export const useElementSelection = (
-  canvasData: CanvasData | null,
-  setCanvasData: (data: CanvasData) => void
+  canvasData: Canvas | null,
+  setCanvasData: (data: Canvas) => void
 ) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isCtrlPressed, setIsCtrlPressed] = useState(false);
@@ -17,7 +17,7 @@ export const useElementSelection = (
     setCanvasData({
       ...canvasData,
       elements: canvasData.elements.map((el) =>
-        el.id === id ? { ...el, isDragging: true } : el
+        el.id === id ? { ...el } : el
       ),
     });
   };
@@ -31,15 +31,13 @@ export const useElementSelection = (
         el.id === id
           ? {
               ...el,
-              x,
-              y,
-              isDragging: false,
-              position: {
-                ...el.position,
-                x,
-                y,
-                X: x,
-                Y: y,
+              data: {
+                ...el.data,
+                position: {
+                  ...el.data.position,
+                  x,
+                  y,
+                },
               },
             }
           : el
@@ -96,25 +94,18 @@ export const useElementSelection = (
         el.id === id
           ? {
               ...el,
-              x: newX,
-              y: newY,
-              width: newWidth,
-              height: newHeight,
-              rotation: newRotation,
-              // Update the position and size objects as well
-              position: {
-                ...el.position,
-                x: newX,
-                y: newY,
-                X: newX,
-                Y: newY,
-              },
-              size: {
-                ...el.size,
-                width: newWidth,
-                height: newHeight,
-                Width: newWidth,
-                Height: newHeight,
+              data: {
+                ...el.data,
+                position: {
+                  ...el.data.position,
+                  x: newX,
+                  y: newY,
+                },
+                size: {
+                  width: newWidth,
+                  height: newHeight,
+                },
+                rotation: newRotation,
               },
             }
           : el
@@ -183,8 +174,8 @@ export const useElementSelection = (
 
       try {
         // If it's an image, delete it from the server first
-        if (elementToDelete?.type === "image" && elementToDelete.imagePath) {
-          await deleteImage(elementToDelete.imagePath);
+        if (elementToDelete?.imageId) {
+          await deleteImage(elementToDelete.imageId);
         }
 
         // Then remove from canvas data

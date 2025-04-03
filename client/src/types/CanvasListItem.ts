@@ -1,4 +1,4 @@
-export interface CanvasListItem {
+export interface canvasListItem {
   id: string;
   name: string;
   userId: string;

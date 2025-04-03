@@ -7,11 +7,11 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { X } from "lucide-react";
-import { CanvasListItem } from "@/types/CanvasListItem";
+import { canvasListItem } from "@/types/canvasListItem";
 import { formatDate } from "@/utils/timeUtils";
 
 interface CanvasCardProps {
-  canvas: CanvasListItem;
+  canvas: canvasListItem;
   onOpen: (id: string) => void;
   onDelete: (id: string, event: React.MouseEvent<HTMLButtonElement>) => void;
   isSubmitting: boolean;

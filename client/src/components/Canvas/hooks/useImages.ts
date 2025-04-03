@@ -1,11 +1,16 @@
 import { useState, useEffect } from "react";
 import { uploadImage } from "../../../api/services/ImagesService";
-import { CanvasData, CanvasElement } from "../../../types";
+import {
+  Canvas,
+  CanvasElement,
+  CanvasElementType,
+} from "../../../types/canvas";
+import { ImageType } from "../../../types/image";
 import { toast } from "sonner";
 
 export const useImages = (
-  canvasData: CanvasData | null,
-  setCanvasData: (data: CanvasData) => void
+  canvasData: Canvas | null,
+  setCanvasData: (data: Canvas) => void
 ) => {
   const [images, setImages] = useState<{ [key: string]: HTMLImageElement }>({});
 
@@ -14,21 +19,16 @@ export const useImages = (
     if (!canvasData) return;
 
     const imageElements = canvasData.elements.filter(
-      (el) => el.type === "image"
+      (el) => el.type === CanvasElementType.Image
     );
     const newImages: { [key: string]: HTMLImageElement } = {};
 
     imageElements.forEach((element) => {
       if (element.id && !images[element.id]) {
         const img = new Image();
-        // If we have a server imagePath, use the API endpoint to get the image
-        if (element.imagePath) {
-          img.src = `${import.meta.env.VITE_API_URL}/images/${
-            element.imagePath
-          }`;
-        } else if (element.src) {
-          // For backwards compatibility or local files not yet uploaded
-          img.src = element.src;
+        // Get image from the API endpoint
+        if (element.imageId) {
+          img.src = `${import.meta.env.VITE_API_URL}/images/${element.imageId}`;
         }
         newImages[element.id] = img;
       }
@@ -47,7 +47,7 @@ export const useImages = (
 
     try {
       // First, upload the image to the server with both userId and canvasId
-      const imagePath = await uploadImage(file, {
+      const imageId = await uploadImage(file, {
         userId: canvasData.userId,
         canvasId: canvasData.id,
       });
@@ -75,46 +75,30 @@ export const useImages = (
           width = width * ratio;
         }
 
-        // Calculate center position by default (can be overridden by point params)
+        // Calculate center position by default
         let x = dimensions.width / 2 - width / 2;
         let y = dimensions.height / 2 - height / 2;
 
         const newElementId = Date.now().toString();
+
+        // Create new element using the new data model
         const newElement: CanvasElement = {
           id: newElementId,
-          type: "image",
-          imagePath: imagePath, // Store the path from the server
-          imageId: imagePath, // Also store as imageId for API compatibility
-          src: img.src, // We still need this for the image to display locally
-          x,
-          y,
-          width,
-          height,
-          rotation: 0,
-          isDragging: false,
-          // Add required fields for API compatibility in C# format
-          position: {
-            x,
-            y,
-            X: Math.round(x),
-            Y: Math.round(y),
+          type: CanvasElementType.Image,
+          data: {
+            position: {
+              x,
+              y,
+              zIndex: 0,
+            },
+            size: {
+              width,
+              height,
+            },
+            rotation: 0,
           },
-          size: {
-            width: Math.round(width),
-            height: Math.round(height),
-            Width: Math.round(width),
-            Height: Math.round(height),
-          },
-          style: {
-            fillColor: "#000000",
-            borderColor: "#000000",
-            fontSize: 16,
-            color: "#000000",
-            FillColor: "#000000",
-            BorderColor: "#000000",
-            FontSize: 16,
-            Color: "#000000",
-          },
+          content: "",
+          imageId,
         };
 
         // Add the new image to the images state
@@ -131,7 +115,7 @@ export const useImages = (
       };
 
       // Set the source to the API endpoint for the uploaded image
-      img.src = `${import.meta.env.VITE_API_URL}/images/${imagePath}`;
+      img.src = `${import.meta.env.VITE_API_URL}/images/${imageId}`;
     } catch (error) {
       console.error("Error uploading image:", error);
       toast.error("Error uploading image", {

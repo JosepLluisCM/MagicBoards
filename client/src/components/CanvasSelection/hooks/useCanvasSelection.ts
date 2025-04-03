@@ -4,13 +4,12 @@ import {
   getCanvasesForUser,
   createCanvas,
   deleteCanvas,
-  getCanvas,
 } from "../../../api/services/CanvasService";
-import { CanvasListItem } from "@/types/CanvasListItem";
+import { canvasListItem } from "@/types/canvasListItem";
 
 export const useCanvasSelection = () => {
   const navigate = useNavigate();
-  const [canvasesList, setCanvasesList] = useState<CanvasListItem[]>([]);
+  const [canvasesList, setCanvasesList] = useState<canvasListItem[]>([]);
   const [newCanvasName, setNewCanvasName] = useState("");
   const [canvasToDelete, setCanvasToDelete] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -29,7 +28,7 @@ export const useCanvasSelection = () => {
             new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
           );
         });
-        setCanvasesList(sortedCanvases as CanvasListItem[]);
+        setCanvasesList(sortedCanvases as canvasListItem[]);
         setError(null);
       } catch (err) {
         console.error("Error loading canvases:", err);
@@ -49,7 +48,7 @@ export const useCanvasSelection = () => {
     try {
       const newCanvas = await createCanvas(newCanvasName);
       // Add new canvas and re-sort the list to ensure the most recently updated is at the top
-      const updatedList = [...canvasesList, newCanvas as CanvasListItem].sort(
+      const updatedList = [...canvasesList, newCanvas as canvasListItem].sort(
         (a, b) =>
           new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
       );
@@ -97,20 +96,10 @@ export const useCanvasSelection = () => {
     setCanvasToDelete(id);
   };
 
-  const handleOpenCanvas = async (id: string) => {
-    setIsSubmitting(true);
-    try {
-      // Get canvas data before navigation
-      await getCanvas(id);
-      // If successful, navigate to the canvas
-      navigate(`/canvas/${id}`);
-      setError(null);
-    } catch (err) {
-      console.error("Error retrieving canvas:", err);
-      setError("Failed to open canvas. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleOpenCanvas = (id: string) => {
+    // Navigate directly to the canvas page
+    // Let the Canvas component handle fetching its own data
+    navigate(`/canvas/${id}`);
   };
 
   const handleCancelDelete = () => {

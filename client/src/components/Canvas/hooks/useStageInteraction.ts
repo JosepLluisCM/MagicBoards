@@ -1,12 +1,22 @@
 import { useState, useEffect, useRef } from "react";
 import Konva from "konva";
-import { StagePosition } from "../../../types";
+import { CanvasData, CanvasPosition } from "../../../types/canvas";
+
+// Define StagePosition interface directly since we're not using index.ts
+interface StagePosition {
+  x: number;
+  y: number;
+  scale: number;
+}
 
 export const useStageInteraction = (
-  initialPosition: StagePosition = { x: 0, y: 0, scale: 1 }
+  initialPosition: CanvasData = {
+    position: { x: 0, y: 0 },
+    scale: 1,
+  }
 ) => {
   const [stagePosition, setStagePosition] =
-    useState<StagePosition>(initialPosition);
+    useState<CanvasData>(initialPosition);
   const [isPanning, setIsPanning] = useState(false);
   const stageRef = useRef<Konva.Stage | null>(null);
 
@@ -27,8 +37,8 @@ export const useStageInteraction = (
     const mouseY = e.clientY - rect.top;
 
     const mousePointTo = {
-      x: (mouseX - stagePosition.x) / oldScale,
-      y: (mouseY - stagePosition.y) / oldScale,
+      x: (mouseX - stagePosition.position.x) / oldScale,
+      y: (mouseY - stagePosition.position.y) / oldScale,
     };
 
     const newPos = {
@@ -37,8 +47,10 @@ export const useStageInteraction = (
     };
 
     setStagePosition({
-      x: newPos.x,
-      y: newPos.y,
+      position: {
+        x: newPos.x,
+        y: newPos.y,
+      },
       scale: limitedScale,
     });
   };
@@ -57,8 +69,10 @@ export const useStageInteraction = (
 
       setStagePosition({
         ...stagePosition,
-        x: stagePosition.x + e.movementX,
-        y: stagePosition.y + e.movementY,
+        position: {
+          x: stagePosition.position.x + e.movementX,
+          y: stagePosition.position.y + e.movementY,
+        },
       });
     }
   };
@@ -70,7 +84,10 @@ export const useStageInteraction = (
   };
 
   const handleResetView = () => {
-    setStagePosition({ x: 0, y: 0, scale: 1 });
+    setStagePosition({
+      position: { x: 0, y: 0 },
+      scale: 1,
+    });
   };
 
   // Handle pointer position in the stage

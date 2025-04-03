@@ -1,39 +1,39 @@
 import apiClient from "../apiClient";
-import { Canvas } from "../../types/canvas";
-import { CanvasListItem } from "../../types/CanvasListItem";
+import { Canvas } from "@/types/canvas";
+import { canvasListItem } from "@/types/canvasListItem";
 
 // Define server-side canvas interface that matches the C# model
-interface ServerCanvas {
-  Id: string;
-  UserId: string;
-  Name: string;
-  CreatedAt: Date;
-  UpdatedAt: Date;
-  Position: {
-    X: number;
-    Y: number;
-  };
-  Scale: number;
-  Elements: {
-    Type: string;
-    Content: string;
-    ImageId: string;
-    Position: {
-      X: number;
-      Y: number;
-    };
-    Size: {
-      Width: number;
-      Height: number;
-    };
-    Style: {
-      FillColor: string;
-      BorderColor: string;
-      FontSize: number;
-      Color: string;
-    };
-  }[];
-}
+// interface ServerCanvas {
+//   Id: string;
+//   UserId: string;
+//   Name: string;
+//   CreatedAt: Date;
+//   UpdatedAt: Date;
+//   Position: {
+//     X: number;
+//     Y: number;
+//   };
+//   Scale: number;
+//   Elements: {
+//     Type: string;
+//     Content: string;
+//     ImageId: string;
+//     Position: {
+//       X: number;
+//       Y: number;
+//     };
+//     Size: {
+//       Width: number;
+//       Height: number;
+//     };
+//     Style: {
+//       FillColor: string;
+//       BorderColor: string;
+//       FontSize: number;
+//       Color: string;
+//     };
+//   }[];
+// }
 
 //export async function fetchData() {
 //  const response = await apiClient.get("api/Firestore/documents");
@@ -50,7 +50,7 @@ export async function createCanvas(name: string): Promise<Canvas> {
   }
 }
 
-export async function getCanvasesForUser(): Promise<CanvasListItem[]> {
+export async function getCanvasesForUser(): Promise<canvasListItem[]> {
   try {
     const response = await apiClient.get("canvases");
     return response.data;
@@ -81,15 +81,11 @@ export async function getCanvas(id: string): Promise<Canvas> {
   }
 }
 
-export async function updateCanvas(canvas: ServerCanvas): Promise<Canvas> {
+export async function updateCanvas(canvas: Canvas): Promise<Canvas> {
   try {
     // Send with Pascal case as required by C# backend
-    const response = await apiClient.put(`canvases/${canvas.Id}`, canvas);
-    return {
-      ...response.data,
-      createdAt: new Date(response.data.createdAt),
-      updatedAt: new Date(response.data.updatedAt),
-    };
+    const response = await apiClient.put(`canvases/${canvas.id}`, canvas);
+    return response.data;
   } catch (error) {
     console.error("Error updating canvas:", error);
     throw new Error("Failed to update canvas");
