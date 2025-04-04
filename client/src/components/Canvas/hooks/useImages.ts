@@ -9,16 +9,16 @@ import { ImageType } from "../../../types/image";
 import { toast } from "sonner";
 
 export const useImages = (
-  canvasData: Canvas | null,
-  setCanvasData: (data: Canvas) => void
+  canvas: Canvas | null,
+  setcanvas: (data: Canvas) => void
 ) => {
   const [images, setImages] = useState<{ [key: string]: HTMLImageElement }>({});
 
   // Load images when canvas data changes
   useEffect(() => {
-    if (!canvasData) return;
+    if (!canvas) return;
 
-    const imageElements = canvasData.elements.filter(
+    const imageElements = canvas.elements.filter(
       (el) => el.type === CanvasElementType.Image
     );
     const newImages: { [key: string]: HTMLImageElement } = {};
@@ -37,19 +37,19 @@ export const useImages = (
     if (Object.keys(newImages).length > 0) {
       setImages((prev) => ({ ...prev, ...newImages }));
     }
-  }, [canvasData, images]);
+  }, [canvas, images]);
 
   const handleFileUpload = async (
     file: File,
     dimensions: { width: number; height: number }
   ) => {
-    if (!canvasData) return;
+    if (!canvas) return;
 
     try {
       // First, upload the image to the server with both userId and canvasId
       const imageId = await uploadImage(file, {
-        userId: canvasData.userId,
-        canvasId: canvasData.id,
+        userId: canvas.userId,
+        canvasId: canvas.id,
       });
 
       // Load the image to get its dimensions
@@ -108,9 +108,9 @@ export const useImages = (
         }));
 
         // Add the new element to the canvas data
-        setCanvasData({
-          ...canvasData,
-          elements: [...canvasData.elements, newElement],
+        setcanvas({
+          ...canvas,
+          elements: [...canvas.elements, newElement],
         });
       };
 

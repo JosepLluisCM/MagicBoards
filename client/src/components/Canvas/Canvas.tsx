@@ -228,14 +228,14 @@ const Canvas = () => {
                     width={element.data.size.width}
                     height={element.data.size.height}
                     rotation={element.data.rotation}
-                    draggable
-                    onClick={() => handleSelectElement(element.id!)}
-                    onTap={() => handleSelectElement(element.id!)}
-                    onDragStart={() => handleDragStart(element.id!)}
-                    onDragEnd={(e) => {
-                      handleDragEnd(element.id!, e.target.x(), e.target.y());
-                    }}
-                    onTransformEnd={() => handleTransformEnd(element.id!)}
+                    //draggable
+                    //onClick={() => handleSelectElement(element.id!)}
+                    //onTap={() => handleSelectElement(element.id!)}
+                    //onDragStart={() => handleDragStart(element.id!)}
+                    //onDragEnd={(e) => {
+                    //  handleDragEnd(element.id!, e.target.x(), e.target.y());
+                    //}}
+                    //onTransformEnd={() => handleTransformEnd(element.id!)}
                   />
                 );
               }
