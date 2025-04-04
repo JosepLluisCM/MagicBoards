@@ -140,7 +140,7 @@ const Canvas = () => {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || !canvas) {
     return (
       <div className="flex justify-center w-full py-10">
         <LoadingSpinner className="h-8 w-8" />
@@ -200,62 +200,60 @@ const Canvas = () => {
         onChange={handleFileChange}
       />
 
-      {canvas && (
-        <Stage
-          width={dimensions.width}
-          height={dimensions.height}
-          ref={stageRef}
-          x={canvas.data.position.x}
-          y={canvas.data.position.y}
-          scaleX={canvas.data.scale}
-          scaleY={canvas.data.scale}
-          onClick={checkDeselect}
-        >
-          <Layer>
-            {canvas.elements.map((element: CanvasElement) => {
-              if (
-                element.type === CanvasElementType.Image &&
-                element.id &&
-                images[element.id]
-              ) {
-                return (
-                  <KonvaImage
-                    key={element.id}
-                    id={element.id}
-                    image={images[element.id]}
-                    x={element.data.position.x}
-                    y={element.data.position.y}
-                    width={element.data.size.width}
-                    height={element.data.size.height}
-                    rotation={element.data.rotation}
-                    //draggable
-                    //onClick={() => handleSelectElement(element.id!)}
-                    //onTap={() => handleSelectElement(element.id!)}
-                    //onDragStart={() => handleDragStart(element.id!)}
-                    //onDragEnd={(e) => {
-                    //  handleDragEnd(element.id!, e.target.x(), e.target.y());
-                    //}}
-                    //onTransformEnd={() => handleTransformEnd(element.id!)}
-                  />
-                );
-              }
-              return null;
-            })}
-            {selectedId && (
-              <Transformer
-                ref={transformerRef}
-                boundBoxFunc={(oldBox, newBox) => {
-                  // Limit resize to a minimal size
-                  if (newBox.width < 5 || newBox.height < 5) {
-                    return oldBox;
-                  }
-                  return newBox;
-                }}
-              />
-            )}
-          </Layer>
-        </Stage>
-      )}
+      <Stage
+        width={dimensions.width}
+        height={dimensions.height}
+        ref={stageRef}
+        x={canvas.data.position.x}
+        y={canvas.data.position.y}
+        scaleX={canvas.data.scale}
+        scaleY={canvas.data.scale}
+        onClick={checkDeselect}
+      >
+        <Layer>
+          {canvas.elements.map((element: CanvasElement) => {
+            if (
+              element.type === CanvasElementType.Image &&
+              element.id &&
+              images[element.id]
+            ) {
+              return (
+                <KonvaImage
+                  key={element.id}
+                  id={element.id}
+                  image={images[element.id]}
+                  x={element.data.position.x}
+                  y={element.data.position.y}
+                  width={element.data.size.width}
+                  height={element.data.size.height}
+                  rotation={element.data.rotation}
+                  draggable
+                  onClick={() => handleSelectElement(element.id!)}
+                  onTap={() => handleSelectElement(element.id!)}
+                  onDragStart={() => handleDragStart(element.id!)}
+                  onDragEnd={(e) => {
+                    handleDragEnd(element.id!, e.target.x(), e.target.y());
+                  }}
+                  onTransformEnd={() => handleTransformEnd(element.id!)}
+                />
+              );
+            }
+            return null;
+          })}
+          {selectedId && (
+            <Transformer
+              ref={transformerRef}
+              boundBoxFunc={(oldBox, newBox) => {
+                // Limit resize to a minimal size
+                if (newBox.width < 5 || newBox.height < 5) {
+                  return oldBox;
+                }
+                return newBox;
+              }}
+            />
+          )}
+        </Layer>
+      </Stage>
     </div>
   );
 };
