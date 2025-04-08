@@ -33,6 +33,16 @@ export async function uploadImage(
   return response.data.imagePath;
 }
 
+export async function getImage(imagePath: string) {
+  const response = await apiClient.get(
+    `images/${encodeURIComponent(imagePath)}`,
+    {
+      responseType: "blob",
+    }
+  );
+  return URL.createObjectURL(response.data);
+}
+
 export async function deleteImage(imagePath: string) {
   const response = await apiClient.delete(
     `images/${encodeURIComponent(imagePath)}`

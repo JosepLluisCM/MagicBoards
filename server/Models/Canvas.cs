@@ -101,7 +101,7 @@ namespace server.Models
         public required CanvasElementSize Size { get; set; }
 
         [FirestoreProperty]
-        public required int Rotation { get; set; }
+        public required float Rotation { get; set; }
     }
 
     [FirestoreData]

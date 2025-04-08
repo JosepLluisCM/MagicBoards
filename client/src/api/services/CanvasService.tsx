@@ -1,6 +1,6 @@
 import apiClient from "../apiClient";
 import { Canvas } from "@/types/canvas";
-import { canvasListItem } from "@/types/canvasListItem";
+import { canvasListItem } from "@/types/CanvasListItem";
 
 // Define server-side canvas interface that matches the C# model
 // interface ServerCanvas {

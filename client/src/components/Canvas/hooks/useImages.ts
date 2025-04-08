@@ -56,13 +56,28 @@ export const useImages = (
       const img = new Image();
 
       img.onload = () => {
-        // Use a reasonable scaling factor - display at 33% of original size
-        const width = img.width * 0.01;
-        const height = img.height * 0.01;
+        // Calculate dimensions to fit the image properly
+        const maxWidth = dimensions.width * 0.01;
+        const maxHeight = dimensions.height * 0.01;
 
-        // Position at canvas center
-        const x = -width / 2;
-        const y = -height / 2;
+        let width = img.width * 0.1;
+        let height = img.height * 0.1;
+
+        if (width > maxWidth) {
+          const ratio = maxWidth / width;
+          width = maxWidth;
+          height = height * ratio;
+        }
+
+        if (height > maxHeight) {
+          const ratio = maxHeight / height;
+          height = maxHeight;
+          width = width * ratio;
+        }
+
+        // Calculate center position by default
+        let x = 0; //dimensions.width / 2 - width / 2;
+        let y = 0; //dimensions.height / 2 - height / 2;
 
         const newElementId = Date.now().toString();
 
