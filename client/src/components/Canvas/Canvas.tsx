@@ -8,13 +8,13 @@ import {
 } from "react-konva";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "../ui/button";
-import useImage from "use-image";
 import { getCanvas, updateCanvas } from "@/api/services/CanvasService";
 import {
   uploadImage,
   getImage,
   deleteImage,
 } from "@/api/services/ImagesService";
+import { generateId } from "@/utils/idUtils";
 import {
   Canvas as CanvasType,
   CanvasElement,
@@ -24,26 +24,32 @@ import {
 const Canvas = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+
+  //#region STATE
   const [canvas, setCanvas] = useState<CanvasType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-
-  // Store loaded images for rendering
   const [loadedImages, setLoadedImages] = useState<
     Record<string, HTMLImageElement>
   >({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const textInputRef = useRef<HTMLInputElement>(null);
-  const transformerRef = useRef<any>(null);
-
   const [dimensions, setDimensions] = useState({
     width: window.innerWidth,
     height: window.innerHeight,
   });
+  //#endregion STATE
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const textInputRef = useRef<HTMLInputElement>(null);
+  const transformerRef = useRef<any>(null);
+
+  const MIN_ELEMENT_SIZE = 20;
+  const MAX_ELEMENT_SIZE = 2000;
+  const MAX_TEXT_WIDTH = 1000;
+
+  //#region EFFECTS
   // Fetch canvas data from API
   useEffect(() => {
     const fetchCanvasData = async () => {
@@ -197,7 +203,9 @@ const Canvas = () => {
       transformerRef.current.nodes([]);
     }
   }, [selectedId]);
+  //#endregion EFFECTS
 
+  //#region HANDLERS
   // Save canvas updates to API - only called when Save button is clicked
   const saveCanvas = async () => {
     if (!canvas) return;
@@ -210,11 +218,6 @@ const Canvas = () => {
       console.error("Error saving canvas:", err);
       setError("Failed to save canvas");
     }
-  };
-
-  // Generate a unique ID
-  const generateId = () => {
-    return Math.random().toString(36).substring(2, 9);
   };
 
   // Handle image upload
@@ -331,6 +334,10 @@ const Canvas = () => {
       const text = textInputRef.current.value.trim();
       const elementId = generateId();
 
+      const fontSize = 20; // Base font size
+      const approxCharWidth = fontSize; // Approximate character width
+      const textWidth = Math.max(50, text.length * approxCharWidth); // Min width 200px
+      const textHeight = Math.max(50, fontSize * 1.5); // Give enough height for the text
       // Create a new text element
       const newElement: CanvasElement = {
         id: elementId,
@@ -339,11 +346,11 @@ const Canvas = () => {
           position: {
             x: 300,
             y: 200,
-            zIndex: canvas.elements.length + 1,
+            zIndex: 0,
           },
           size: {
-            width: text.length * 10, // Approximate width
-            height: 30,
+            width: textWidth,
+            height: textHeight,
           },
           rotation: 0,
         },
@@ -367,6 +374,9 @@ const Canvas = () => {
       textInputRef.current.style.display = "none";
 
       setHasUnsavedChanges(true);
+
+      // Select the newly created text element
+      setSelectedId(elementId);
     }
   };
 
@@ -483,34 +493,6 @@ const Canvas = () => {
     }
   };
 
-  if (loading)
-    return (
-      <div className="flex items-center justify-center h-screen">
-        Loading canvas...
-      </div>
-    );
-  if (error)
-    return (
-      <div className="flex items-center justify-center h-screen text-red-500">
-        {error}
-      </div>
-    );
-  if (!canvas)
-    return (
-      <div className="flex items-center justify-center h-screen">
-        Canvas not found
-      </div>
-    );
-
-  // Get the selected element
-  const selectedElement = selectedId
-    ? canvas.elements.find((el) => el.id === selectedId)
-    : null;
-
-  // Check if the selected element is an image or text
-  const isImageSelected = selectedElement?.type === CanvasElementType.Image;
-  const isTextSelected = selectedElement?.type === CanvasElementType.Text;
-
   // Handle element transform end (resize/rotate)
   const handleTransformEnd = (e: any, elementId: string) => {
     if (!canvas) return;
@@ -526,8 +508,25 @@ const Canvas = () => {
     const scaleX = node.scaleX();
     const scaleY = node.scaleY();
 
-    const newWidth = Math.max(10, element.data.size.width * scaleX);
-    const newHeight = Math.max(10, element.data.size.height * scaleY);
+    // Apply size limits based on element type
+    let newWidth, newHeight;
+
+    if (element.type === CanvasElementType.Text) {
+      newWidth = Math.min(
+        MAX_TEXT_WIDTH,
+        Math.max(MIN_ELEMENT_SIZE, element.data.size.width * scaleX)
+      );
+      newHeight = Math.max(MIN_ELEMENT_SIZE, element.data.size.height * scaleY);
+    } else {
+      newWidth = Math.min(
+        MAX_ELEMENT_SIZE,
+        Math.max(MIN_ELEMENT_SIZE, element.data.size.width * scaleX)
+      );
+      newHeight = Math.min(
+        MAX_ELEMENT_SIZE,
+        Math.max(MIN_ELEMENT_SIZE, element.data.size.height * scaleY)
+      );
+    }
     const newRotation = node.rotation();
 
     // Reset scale on the node itself, as we've applied it to the width/height
@@ -566,6 +565,39 @@ const Canvas = () => {
 
     // No immediate save to server - user will need to click Save button
   };
+  //#endregion HANDLERS
+
+  //#region RENDER HELPERS
+  // Get the selected element
+  const selectedElement =
+    selectedId && canvas
+      ? canvas.elements.find((el) => el.id === selectedId)
+      : null;
+
+  // Check if the selected element is an image or text
+  const isImageSelected = selectedElement?.type === CanvasElementType.Image;
+  const isTextSelected = selectedElement?.type === CanvasElementType.Text;
+  //#endregion RENDER HELPERS
+
+  //#region RENDERING
+  if (loading)
+    return (
+      <div className="flex items-center justify-center h-screen">
+        Loading canvas...
+      </div>
+    );
+  if (error)
+    return (
+      <div className="flex items-center justify-center h-screen text-red-500">
+        {error}
+      </div>
+    );
+  if (!canvas)
+    return (
+      <div className="flex items-center justify-center h-screen">
+        Canvas not found
+      </div>
+    );
 
   return (
     <div className="w-screen h-screen overflow-hidden" tabIndex={0}>
@@ -666,6 +698,9 @@ const Canvas = () => {
             }
 
             if (element.type === CanvasElementType.Text) {
+              // Make font size proportional to the element height
+              const fontSize = Math.max(12, element.data.size.height * 0.9);
+
               return (
                 <Text
                   key={element.id}
@@ -674,33 +709,36 @@ const Canvas = () => {
                   x={element.data.position.x}
                   y={element.data.position.y}
                   width={element.data.size.width}
-                  fontSize={20}
+                  fontSize={fontSize}
                   fontFamily="Arial"
                   fill="white"
-                  rotation={element.data.rotation || 0}
+                  rotation={element.data.rotation}
                   draggable
                   onClick={() => setSelectedId(element.id)}
                   onTap={() => setSelectedId(element.id)}
                   onDragEnd={(e) => handleDragEnd(e, element.id)}
                   onTransformEnd={(e) => handleTransformEnd(e, element.id)}
+                  verticalAlign="middle"
+                  align="center"
+                  wrap="word"
                 />
               );
             }
 
             return null;
           })}
-          {/* Add Transformer */}
           <Transformer
+            centeredScaling
             ref={transformerRef}
             boundBoxFunc={(oldBox, newBox) => {
               // Limit resize to a minimum size
-              if (newBox.width < 5 || newBox.height < 5) {
+              if (newBox.width < 50 || newBox.height < 50) {
                 return oldBox;
               }
               return newBox;
             }}
             anchorSize={8}
-            anchorCornerRadius={2}
+            anchorCornerRadius={4}
             enabledAnchors={[
               "top-left",
               "top-center",
@@ -716,6 +754,7 @@ const Canvas = () => {
       </Stage>
     </div>
   );
+  //#endregion RENDERING
 };
 
 export default Canvas;
