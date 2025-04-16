@@ -33,6 +33,8 @@ const useGrid = ({
   const stageRef = useRef<Konva.Stage>(null);
   const gridLayerRef = useRef<Konva.Layer>(null);
   const isInitializedRef = useRef(false);
+  const dataAppliedRef = useRef(false);
+  const initialDataAppliedRef = useRef(false);
 
   // Set initial scale and position - don't use defaults, wait for data
   const [scale, setScale] = useState<number | null>(null);
@@ -58,10 +60,24 @@ const useGrid = ({
   useEffect(() => {
     if (initialCanvasData) {
       // Use exact scale from database
-      setScale(initialCanvasData.scale);
+      const canvasScale =
+        typeof initialCanvasData.scale === "number" &&
+        initialCanvasData.scale > 0
+          ? initialCanvasData.scale
+          : 1;
+
+      // Ensure position values are numbers
+      const canvasX = Number(initialCanvasData.position.x || 0);
+      const canvasY = Number(initialCanvasData.position.y || 0);
+
+      console.log(
+        `Setting initial canvas data: scale=${canvasScale}, x=${canvasX}, y=${canvasY}`
+      );
+
+      setScale(canvasScale);
       setPosition({
-        x: initialCanvasData.position.x,
-        y: initialCanvasData.position.y,
+        x: canvasX,
+        y: canvasY,
       });
     }
   }, [initialCanvasData]);
@@ -296,62 +312,99 @@ const useGrid = ({
     if (!stageRef.current || !gridLayerRef.current) return;
     if (!initialCanvasData) return; // Wait for data
 
-    // Only initialize once
-    if (isInitializedRef.current) return;
-    isInitializedRef.current = true;
+    // Get valid position and scale values
+    const canvasScale =
+      typeof initialCanvasData.scale === "number" && initialCanvasData.scale > 0
+        ? initialCanvasData.scale
+        : 1;
+    const canvasX = Number(initialCanvasData.position.x || 0);
+    const canvasY = Number(initialCanvasData.position.y || 0);
 
-    // Make stage draggable for panning
-    stageRef.current.draggable(true);
+    console.log(
+      `Applying canvas data to stage: scale=${canvasScale}, x=${canvasX}, y=${canvasY}`
+    );
 
-    // Use the exact scale from the database (no validation/limits here)
-    const exactScale = initialCanvasData.scale;
+    // Stop here if we've already applied initial data
+    if (initialDataAppliedRef.current) {
+      console.log("Initial data already applied, skipping");
+      return;
+    }
 
-    // Set initial scale and position from CanvasData
+    // Apply scale and position to stage
     stageRef.current.scale({
-      x: exactScale,
-      y: exactScale,
+      x: canvasScale,
+      y: canvasScale,
     });
 
     stageRef.current.position({
-      x: initialCanvasData.position.x,
-      y: initialCanvasData.position.y,
+      x: canvasX,
+      y: canvasY,
     });
+
+    // Make stage draggable for panning (only need to do this once)
+    if (!isInitializedRef.current) {
+      stageRef.current.draggable(true);
+      isInitializedRef.current = true;
+
+      // Add event listeners to stage (only do this once)
+      const stage = stageRef.current;
+
+      // Handle stage drag end
+      const handleDragEnd = () => {
+        if (!stage) return;
+        const newPos = stage.position();
+
+        // Update state and notify of changes
+        updateView(stage.scaleX(), newPos);
+
+        drawGridLines();
+      };
+
+      // Handle stage drag move for smoother experience
+      const handleDragMove = () => {
+        if (!stage) return;
+        // We don't update state during drag move to avoid excessive renders
+        // But we do redraw the grid for a smoother experience
+        drawGridLines();
+      };
+
+      // Add event listeners
+      stage.on("dragend", handleDragEnd);
+      stage.on("dragmove", handleDragMove);
+
+      // Remove event listeners on cleanup
+      const removeListeners = () => {
+        if (stage) {
+          stage.off("dragend", handleDragEnd);
+          stage.off("dragmove", handleDragMove);
+        }
+      };
+
+      // Return cleanup function
+      if (typeof window !== "undefined") {
+        // Cleanup when component unmounts
+        window.addEventListener("beforeunload", removeListeners);
+        return () => {
+          window.removeEventListener("beforeunload", removeListeners);
+          removeListeners();
+        };
+      }
+    }
+
+    dataAppliedRef.current = true;
+    initialDataAppliedRef.current = true;
 
     // Make sure the state matches what we just set on the stage
-    setScale(exactScale);
+    setScale(canvasScale);
     setPosition({
-      x: initialCanvasData.position.x,
-      y: initialCanvasData.position.y,
+      x: canvasX,
+      y: canvasY,
     });
 
-    // Initial draw of grid
-    drawGridLines();
-
-    // Add event listeners to stage
-    const stage = stageRef.current;
-
-    // Handle stage drag end
-    const handleDragEnd = () => {
-      if (!stage) return;
-      const newPos = stage.position();
-
-      // Update state and notify of changes
-      updateView(stage.scaleX(), newPos);
-
+    // Draw grid with small delay to ensure stage is ready
+    setTimeout(() => {
       drawGridLines();
-    };
-
-    // Handle stage drag move for smoother experience
-    const handleDragMove = () => {
-      if (!stage) return;
-      // We don't update state during drag move to avoid excessive renders
-      // But we do redraw the grid for a smoother experience
-      drawGridLines();
-    };
-
-    // Add event listeners
-    stage.on("dragend", handleDragEnd);
-    stage.on("dragmove", handleDragMove);
+    }, 0);
 
     // Force an additional redraw on the next frame to ensure grid is visible
     requestAnimationFrame(() => {
@@ -363,46 +416,13 @@ const useGrid = ({
     setTimeout(() => {
       drawGridLines();
     }, 200);
-
-    // Remove event listeners on cleanup
-    return () => {
-      stage.off("dragend", handleDragEnd);
-      stage.off("dragmove", handleDragMove);
-    };
-  }, [initialCanvasData]);
-
-  // Effect to update state when initialCanvasData changes
-  useEffect(() => {
-    if (initialCanvasData && !isInitializedRef.current) {
-      // This handles the case where initialCanvasData arrives after initial render
-      const exactScale = initialCanvasData.scale;
-
-      setScale(exactScale);
-      setPosition({
-        x: initialCanvasData.position.x,
-        y: initialCanvasData.position.y,
-      });
-
-      // If stage is already rendered, update it too
-      if (stageRef.current) {
-        stageRef.current.scale({
-          x: exactScale,
-          y: exactScale,
-        });
-        stageRef.current.position({
-          x: initialCanvasData.position.x,
-          y: initialCanvasData.position.y,
-        });
-
-        // Ensure grid is drawn
-        drawGridLines();
-      }
-    }
-  }, [initialCanvasData]);
+  }, [initialCanvasData, stageRef.current, gridLayerRef.current]);
 
   // Add a general effect to draw grid when component mounts
   useEffect(() => {
-    if (stageRef.current && gridLayerRef.current) {
+    // Only draw grid if stage and layer are ready AND data has been applied
+    if (stageRef.current && gridLayerRef.current && dataAppliedRef.current) {
+      console.log("Drawing grid after initialization");
       // Initial draw might need multiple attempts
       drawGridLines();
 
@@ -413,7 +433,28 @@ const useGrid = ({
 
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, [dataAppliedRef.current]);
+
+  // Export this for debugging
+  const forceApplyData = () => {
+    if (!stageRef.current || !initialCanvasData) return;
+
+    const canvasScale =
+      typeof initialCanvasData.scale === "number" && initialCanvasData.scale > 0
+        ? initialCanvasData.scale
+        : 1;
+    const canvasX = Number(initialCanvasData.position.x || 0);
+    const canvasY = Number(initialCanvasData.position.y || 0);
+
+    console.log(
+      `Force applying canvas data: scale=${canvasScale}, x=${canvasX}, y=${canvasY}`
+    );
+
+    stageRef.current.scale({ x: canvasScale, y: canvasScale });
+    stageRef.current.position({ x: canvasX, y: canvasY });
+
+    drawGridLines();
+  };
 
   // Get current canvas data for saving
   const getCanvasData = (): CanvasData => {
@@ -510,6 +551,7 @@ const useGrid = ({
     handleWheel,
     drawGridLines,
     getCanvasData,
+    forceApplyData,
   };
 };
 

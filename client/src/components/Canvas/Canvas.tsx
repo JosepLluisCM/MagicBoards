@@ -55,6 +55,7 @@ const Canvas = () => {
     handleWheel,
     getCanvasData,
     drawGridLines,
+    forceApplyData,
   } = useGrid({
     stepSize: 50,
     gridColor: "rgba(255, 255, 255, 0.2)",
@@ -255,6 +256,22 @@ const Canvas = () => {
       transformerRef.current.nodes([]);
     }
   }, [selectedId]);
+
+  // Add an effect to force apply the canvas data when it's available
+  useEffect(() => {
+    if (canvas?.data && !loading && stageRef.current) {
+      console.log("Canvas data available, forcing application:", canvas.data);
+      // Small delay to ensure the stage is ready
+      setTimeout(() => {
+        forceApplyData();
+      }, 0);
+    }
+  }, [canvas, loading, stageRef.current]);
+
+  // Log scale changes to debug
+  useEffect(() => {
+    console.log("Scale changed:", scale);
+  }, [scale]);
   //#endregion EFFECTS
 
   //#region HANDLERS
@@ -731,115 +748,125 @@ const Canvas = () => {
         </Button>
       </div>
 
-      <Stage
-        ref={stageRef}
-        width={dimensions.width}
-        height={dimensions.height}
-        draggable={true}
-        onClick={(e) => {
-          // Deselect when clicking on empty stage
-          if (e.target === e.target.getStage()) {
-            setSelectedId(null);
-          }
-        }}
-        onWheel={handleWheel}
-        onDragEnd={() => {
-          // Redraw grid when drag ends
-          drawGridLines();
-          // Mark canvas as having unsaved changes
-          if (!hasUnsavedChanges) {
-            setHasUnsavedChanges(true);
-          }
-        }}
-        onDragMove={() => {
-          // Redraw grid during drag for smoother experience
-          drawGridLines();
-        }}
-        className="bg-black/10"
-      >
-        {/* Grid Layer */}
-        <Layer ref={gridLayerRef} />
+      {/* Loading indicator */}
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center text-white">
+          Loading canvas...
+        </div>
+      )}
 
-        <Layer>
-          {canvas?.elements.map((element) => {
-            if (element.type === CanvasElementType.Image) {
-              const image = loadedImages[element.imageId];
-              if (!image) return null;
-
-              return (
-                <KonvaImage
-                  key={element.id}
-                  id={element.id}
-                  image={image}
-                  x={element.data.position.x}
-                  y={element.data.position.y}
-                  width={element.data.size.width}
-                  height={element.data.size.height}
-                  rotation={element.data.rotation || 0}
-                  draggable
-                  onClick={() => setSelectedId(element.id)}
-                  onTap={() => setSelectedId(element.id)}
-                  onDragEnd={(e) => handleDragEnd(e, element.id)}
-                  onTransformEnd={(e) => handleTransformEnd(e, element.id)}
-                />
-              );
+      {/* Render Stage only when we have canvas data */}
+      {canvas && !loading && (
+        <Stage
+          ref={stageRef}
+          width={dimensions.width}
+          height={dimensions.height}
+          draggable={true}
+          onClick={(e) => {
+            // Deselect when clicking on empty stage
+            if (e.target === e.target.getStage()) {
+              setSelectedId(null);
             }
-
-            if (element.type === CanvasElementType.Text) {
-              // Make font size proportional to the element height
-              const fontSize = Math.max(12, element.data.size.height * 0.9);
-
-              return (
-                <Text
-                  key={element.id}
-                  id={element.id}
-                  text={element.content}
-                  x={element.data.position.x}
-                  y={element.data.position.y}
-                  width={element.data.size.width}
-                  fontSize={fontSize}
-                  fontFamily="Arial"
-                  fill="white"
-                  rotation={element.data.rotation}
-                  draggable
-                  onClick={() => setSelectedId(element.id)}
-                  onTap={() => setSelectedId(element.id)}
-                  onDragEnd={(e) => handleDragEnd(e, element.id)}
-                  onTransformEnd={(e) => handleTransformEnd(e, element.id)}
-                  verticalAlign="middle"
-                  align="center"
-                  wrap="word"
-                />
-              );
+          }}
+          onWheel={handleWheel}
+          onDragEnd={() => {
+            // Redraw grid when drag ends
+            drawGridLines();
+            // Mark canvas as having unsaved changes
+            if (!hasUnsavedChanges) {
+              setHasUnsavedChanges(true);
             }
+          }}
+          onDragMove={() => {
+            // Redraw grid during drag for smoother experience
+            drawGridLines();
+          }}
+          className="bg-black/10"
+        >
+          {/* Grid Layer */}
+          <Layer ref={gridLayerRef} />
 
-            return null;
-          })}
-          <Transformer
-            centeredScaling
-            ref={transformerRef}
-            boundBoxFunc={(oldBox, newBox) => {
-              // Limit resize to a minimum size
-              if (newBox.width < 50 || newBox.height < 50) {
-                return oldBox;
+          <Layer>
+            {canvas?.elements.map((element) => {
+              if (element.type === CanvasElementType.Image) {
+                const image = loadedImages[element.imageId];
+                if (!image) return null;
+
+                return (
+                  <KonvaImage
+                    key={element.id}
+                    id={element.id}
+                    image={image}
+                    x={element.data.position.x}
+                    y={element.data.position.y}
+                    width={element.data.size.width}
+                    height={element.data.size.height}
+                    rotation={element.data.rotation || 0}
+                    draggable
+                    onClick={() => setSelectedId(element.id)}
+                    onTap={() => setSelectedId(element.id)}
+                    onDragEnd={(e) => handleDragEnd(e, element.id)}
+                    onTransformEnd={(e) => handleTransformEnd(e, element.id)}
+                  />
+                );
               }
-              return newBox;
-            }}
-            anchorSize={8}
-            anchorCornerRadius={4}
-            enabledAnchors={[
-              "top-left",
-              "top-center",
-              "top-right",
-              "middle-right",
-              "middle-left",
-              "bottom-left",
-              "bottom-center",
-              "bottom-right",
-            ]}
-          />
-        </Layer>
-      </Stage>
+
+              if (element.type === CanvasElementType.Text) {
+                // Make font size proportional to the element height
+                const fontSize = Math.max(12, element.data.size.height * 0.9);
+
+                return (
+                  <Text
+                    key={element.id}
+                    id={element.id}
+                    text={element.content}
+                    x={element.data.position.x}
+                    y={element.data.position.y}
+                    width={element.data.size.width}
+                    fontSize={fontSize}
+                    fontFamily="Arial"
+                    fill="white"
+                    rotation={element.data.rotation}
+                    draggable
+                    onClick={() => setSelectedId(element.id)}
+                    onTap={() => setSelectedId(element.id)}
+                    onDragEnd={(e) => handleDragEnd(e, element.id)}
+                    onTransformEnd={(e) => handleTransformEnd(e, element.id)}
+                    verticalAlign="middle"
+                    align="center"
+                    wrap="word"
+                  />
+                );
+              }
+
+              return null;
+            })}
+            <Transformer
+              centeredScaling
+              ref={transformerRef}
+              boundBoxFunc={(oldBox, newBox) => {
+                // Limit resize to a minimum size
+                if (newBox.width < 50 || newBox.height < 50) {
+                  return oldBox;
+                }
+                return newBox;
+              }}
+              anchorSize={8}
+              anchorCornerRadius={4}
+              enabledAnchors={[
+                "top-left",
+                "top-center",
+                "top-right",
+                "middle-right",
+                "middle-left",
+                "bottom-left",
+                "bottom-center",
+                "bottom-right",
+              ]}
+            />
+          </Layer>
+        </Stage>
+      )}
     </div>
   );
   //#endregion RENDERING
