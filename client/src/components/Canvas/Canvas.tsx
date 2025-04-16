@@ -6,6 +6,7 @@ import {
   Image as KonvaImage,
   Transformer,
 } from "react-konva";
+import Konva from "konva";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "../ui/button";
 import { getCanvas, updateCanvas } from "@/api/services/CanvasService";
@@ -75,10 +76,83 @@ const Canvas = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
   const transformerRef = useRef<any>(null);
+  const lastPositionRef = useRef<{
+    x: number;
+    y: number;
+    scaleX: number;
+    scaleY: number;
+  } | null>(null);
+  // Add a timer ref for debouncing
+  const debounceTimerRef = useRef<number | null>(null);
+
+  // Add a ref to track if we're currently dragging an element
+  const isElementDraggingRef = useRef(false);
 
   const MIN_ELEMENT_SIZE = 20;
   const MAX_ELEMENT_SIZE = 2000;
   const MAX_TEXT_WIDTH = 1000;
+
+  // Add a debounced version of forceApplyData
+  const debouncedForceApplyData = () => {
+    // Clear any existing timer
+    if (debounceTimerRef.current !== null) {
+      window.clearTimeout(debounceTimerRef.current);
+    }
+
+    // Set a new timer
+    debounceTimerRef.current = window.setTimeout(() => {
+      console.log("Applying data after debounce");
+      forceApplyData();
+      debounceTimerRef.current = null;
+    }, 300); // Wait 300ms after last event
+  };
+
+  // Add a function to update canvas data instead of forcing the initial data
+  const updateCanvasData = async () => {
+    if (!canvas || !stageRef.current) return;
+
+    // Get current position and scale from the stage
+    const currentData = {
+      scale: stageRef.current.scaleX(),
+      position: {
+        x: stageRef.current.x(),
+        y: stageRef.current.y(),
+      },
+    };
+
+    console.log("Updating canvas data:", currentData);
+
+    // Only update the data property without touching elements
+    setCanvas((prevCanvas) => {
+      if (!prevCanvas) return prevCanvas;
+
+      return {
+        ...prevCanvas,
+        data: currentData,
+        updatedAt: new Date().toISOString(),
+        // Keep the same elements
+        elements: prevCanvas.elements,
+      };
+    });
+
+    // Mark as having unsaved changes
+    setHasUnsavedChanges(true);
+  };
+
+  // Add a debounced version of updateCanvasData
+  const debouncedUpdateCanvasData = () => {
+    // Clear any existing timer
+    if (debounceTimerRef.current !== null) {
+      window.clearTimeout(debounceTimerRef.current);
+    }
+
+    // Set a new timer
+    debounceTimerRef.current = window.setTimeout(() => {
+      console.log("Updating canvas data after debounce");
+      updateCanvasData();
+      debounceTimerRef.current = null;
+    }, 300); // Wait 300ms after last event
+  };
 
   //#region EFFECTS
   // Fetch canvas data from API
@@ -281,16 +355,19 @@ const Canvas = () => {
 
     try {
       // Get current canvas position and scale for saving
-      const canvasData = getCanvasData();
+      const currentViewData = getCanvasData();
 
-      // Update the canvas with current position and scale
+      // Update the canvas with current position and scale, preserving elements
       const updatedCanvas = {
         ...canvas,
-        data: canvasData,
+        data: currentViewData,
         updatedAt: new Date().toISOString(),
       };
 
+      // Save to server
       await updateCanvas(updatedCanvas);
+
+      // Update local state
       setCanvas(updatedCanvas);
       setHasUnsavedChanges(false);
       console.log("Canvas saved successfully");
@@ -406,9 +483,8 @@ const Canvas = () => {
       const text = textInputRef.current.value.trim();
       const elementId = generateId();
 
-      const fontSize = 20; // Base font size
-      const approxCharWidth = fontSize; // Approximate character width
-      const textWidth = Math.max(50, text.length * approxCharWidth); // Min width 200px
+      const fontSize = 20;
+      const textWidth = Math.max(50, text.length * fontSize * 1.1); // Min width 200px
       const textHeight = Math.max(50, fontSize * 1.5); // Give enough height for the text
       // Create a new text element
       const newElement: CanvasElement = {
@@ -452,27 +528,45 @@ const Canvas = () => {
     }
   };
 
+  // Handle element drag start
+  const handleElementDragStart = () => {
+    console.log("Element drag start");
+    isElementDraggingRef.current = true;
+  };
+
   // Handle element drag end
   const handleDragEnd = (e: any, elementId: string) => {
     if (!canvas) return;
 
+    console.log("Element drag end");
+    isElementDraggingRef.current = false;
+
+    // Get the current node position
+    const newX = e.target.x();
+    const newY = e.target.y();
+
+    console.log(`Element ${elementId} moved to:`, { x: newX, y: newY });
+
+    // Update the canvas state with the new element position
     setCanvas((prev) => {
       if (!prev) return prev;
 
       const updatedElements = prev.elements.map((el) => {
         if (el.id === elementId) {
+          // Only update position for this specific element
           return {
             ...el,
             data: {
               ...el.data,
               position: {
                 ...el.data.position,
-                x: e.target.x(),
-                y: e.target.y(),
+                x: newX,
+                y: newY,
               },
             },
           };
         }
+        // Keep all other elements unchanged
         return el;
       });
 
@@ -480,6 +574,8 @@ const Canvas = () => {
         ...prev,
         elements: updatedElements,
         updatedAt: new Date().toISOString(),
+        // Preserve the current view data
+        data: prev.data,
       };
     });
 
@@ -579,6 +675,9 @@ const Canvas = () => {
     // Calculate new dimensions and rotation, accounting for scale
     const scaleX = node.scaleX();
     const scaleY = node.scaleY();
+    const newX = node.x();
+    const newY = node.y();
+    const newRotation = node.rotation();
 
     // Apply size limits based on element type
     let newWidth, newHeight;
@@ -599,16 +698,24 @@ const Canvas = () => {
         Math.max(MIN_ELEMENT_SIZE, element.data.size.height * scaleY)
       );
     }
-    const newRotation = node.rotation();
 
     // Reset scale on the node itself, as we've applied it to the width/height
     node.scaleX(1);
     node.scaleY(1);
 
+    console.log(`Element ${elementId} transformed:`, {
+      x: newX,
+      y: newY,
+      width: newWidth,
+      height: newHeight,
+      rotation: newRotation,
+    });
+
     // Update canvas with new element properties
-    const updatedCanvas = {
-      ...canvas,
-      elements: canvas.elements.map((el) => {
+    setCanvas((prev) => {
+      if (!prev) return prev;
+
+      const updatedElements = prev.elements.map((el) => {
         if (el.id === elementId) {
           return {
             ...el,
@@ -616,8 +723,8 @@ const Canvas = () => {
               ...el.data,
               position: {
                 ...el.data.position,
-                x: node.x(),
-                y: node.y(),
+                x: newX,
+                y: newY,
               },
               size: {
                 width: newWidth,
@@ -628,14 +735,29 @@ const Canvas = () => {
           };
         }
         return el;
-      }),
-      updatedAt: new Date().toISOString(),
-    };
+      });
 
-    setCanvas(updatedCanvas);
+      return {
+        ...prev,
+        elements: updatedElements,
+        updatedAt: new Date().toISOString(),
+        // Preserve the current view data
+        data: prev.data,
+      };
+    });
+
     setHasUnsavedChanges(true);
 
     // No immediate save to server - user will need to click Save button
+  };
+
+  // Add a custom wheel handler
+  const handleWheelWithForceApply = (e: Konva.KonvaEventObject<WheelEvent>) => {
+    // First call the original wheel handler from useGrid
+    handleWheel(e);
+
+    // Call the debounced version instead (that preserves position)
+    debouncedUpdateCanvasData();
   };
   //#endregion HANDLERS
 
@@ -761,14 +883,34 @@ const Canvas = () => {
           ref={stageRef}
           width={dimensions.width}
           height={dimensions.height}
-          draggable={true}
+          draggable={false}
           onClick={(e) => {
             // Deselect when clicking on empty stage
             if (e.target === e.target.getStage()) {
               setSelectedId(null);
             }
           }}
-          onWheel={handleWheel}
+          onWheel={handleWheelWithForceApply}
+          onMouseDown={(e) => {
+            // Enable dragging only when middle mouse button is pressed (button 1)
+            // And we're not currently dragging an element
+            const stage = e.target.getStage();
+            if (
+              stage &&
+              e.evt.button === 1 &&
+              stageRef.current &&
+              !isElementDraggingRef.current
+            ) {
+              stageRef.current.draggable(true);
+            }
+          }}
+          onMouseUp={(e) => {
+            // Disable dragging when mouse button is released
+            const stage = e.target.getStage();
+            if (stage && e.evt.button === 1 && stageRef.current) {
+              stageRef.current.draggable(false);
+            }
+          }}
           onDragEnd={() => {
             // Redraw grid when drag ends
             drawGridLines();
@@ -776,6 +918,14 @@ const Canvas = () => {
             if (!hasUnsavedChanges) {
               setHasUnsavedChanges(true);
             }
+
+            // Disable dragging after drag ends (as an extra safeguard)
+            if (stageRef.current) {
+              stageRef.current.draggable(false);
+            }
+
+            // Use the position-preserving update function
+            debouncedUpdateCanvasData();
           }}
           onDragMove={() => {
             // Redraw grid during drag for smoother experience
@@ -805,7 +955,9 @@ const Canvas = () => {
                     draggable
                     onClick={() => setSelectedId(element.id)}
                     onTap={() => setSelectedId(element.id)}
+                    onDragStart={handleElementDragStart}
                     onDragEnd={(e) => handleDragEnd(e, element.id)}
+                    onTransformStart={handleElementDragStart}
                     onTransformEnd={(e) => handleTransformEnd(e, element.id)}
                   />
                 );
@@ -830,7 +982,9 @@ const Canvas = () => {
                     draggable
                     onClick={() => setSelectedId(element.id)}
                     onTap={() => setSelectedId(element.id)}
+                    onDragStart={handleElementDragStart}
                     onDragEnd={(e) => handleDragEnd(e, element.id)}
+                    onTransformStart={handleElementDragStart}
                     onTransformEnd={(e) => handleTransformEnd(e, element.id)}
                     verticalAlign="middle"
                     align="center"

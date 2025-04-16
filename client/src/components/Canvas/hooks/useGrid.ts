@@ -343,7 +343,7 @@ const useGrid = ({
 
     // Make stage draggable for panning (only need to do this once)
     if (!isInitializedRef.current) {
-      stageRef.current.draggable(true);
+      //stageRef.current.draggable(true);
       isInitializedRef.current = true;
 
       // Add event listeners to stage (only do this once)
