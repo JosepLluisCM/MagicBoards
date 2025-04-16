@@ -54,6 +54,7 @@ const Canvas = () => {
     resetView,
     handleWheel,
     getCanvasData,
+    drawGridLines,
   } = useGrid({
     stepSize: 50,
     gridColor: "rgba(255, 255, 255, 0.2)",
@@ -92,6 +93,24 @@ const Canvas = () => {
         setLoading(true);
         const canvasData = await getCanvas(id);
 
+        // Ensure canvas.data exists and has valid position and scale
+        if (!canvasData.data) {
+          canvasData.data = { position: { x: 0, y: 0 }, scale: 1 };
+        } else {
+          // Ensure scale is valid
+          if (
+            typeof canvasData.data.scale !== "number" ||
+            canvasData.data.scale <= 0
+          ) {
+            canvasData.data.scale = 1;
+          }
+
+          // Ensure position is valid
+          if (!canvasData.data.position) {
+            canvasData.data.position = { x: 0, y: 0 };
+          }
+        }
+
         // Make sure each element has all required properties
         const normalizedElements = canvasData.elements.map((element) => {
           return {
@@ -116,10 +135,13 @@ const Canvas = () => {
           };
         });
 
-        setCanvas({
+        const normalizedCanvas = {
           ...canvasData,
           elements: normalizedElements,
-        });
+        };
+
+        // Set canvas with normalized data in a single update to avoid flashing
+        setCanvas(normalizedCanvas);
         setLoading(false);
       } catch (err) {
         console.error("Error fetching canvas:", err);
@@ -713,6 +735,7 @@ const Canvas = () => {
         ref={stageRef}
         width={dimensions.width}
         height={dimensions.height}
+        draggable={true}
         onClick={(e) => {
           // Deselect when clicking on empty stage
           if (e.target === e.target.getStage()) {
@@ -720,6 +743,18 @@ const Canvas = () => {
           }
         }}
         onWheel={handleWheel}
+        onDragEnd={() => {
+          // Redraw grid when drag ends
+          drawGridLines();
+          // Mark canvas as having unsaved changes
+          if (!hasUnsavedChanges) {
+            setHasUnsavedChanges(true);
+          }
+        }}
+        onDragMove={() => {
+          // Redraw grid during drag for smoother experience
+          drawGridLines();
+        }}
         className="bg-black/10"
       >
         {/* Grid Layer */}

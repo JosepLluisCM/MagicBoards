@@ -43,7 +43,7 @@ namespace server.Models
                 Data = new CanvasData
                 {
                     Position = new CanvasPosition { X = 0, Y = 0 },
-                    Scale = 100
+                    Scale = 1
                 },
                 Elements = new List<CanvasElement>(),
                 UserId = userId,

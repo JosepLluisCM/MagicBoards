@@ -32,13 +32,13 @@ const useGrid = ({
 }: UseGridOptions = {}) => {
   const stageRef = useRef<Konva.Stage>(null);
   const gridLayerRef = useRef<Konva.Layer>(null);
+  const isInitializedRef = useRef(false);
 
-  // Set initial scale and position from CanvasData or use defaults
-  const [scale, setScale] = useState(initialCanvasData?.scale || 1);
-  const initialPosition = initialCanvasData?.position
-    ? { x: initialCanvasData.position.x, y: initialCanvasData.position.y }
-    : { x: 0, y: 0 };
-  const [position, setPosition] = useState(initialPosition);
+  // Set initial scale and position - don't use defaults, wait for data
+  const [scale, setScale] = useState<number | null>(null);
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(
+    null
+  );
 
   // Function to update state and notify of changes
   const updateView = (
@@ -53,6 +53,18 @@ const useGrid = ({
       onViewChange();
     }
   };
+
+  // Effect to update state when initialCanvasData changes
+  useEffect(() => {
+    if (initialCanvasData) {
+      // Use exact scale from database
+      setScale(initialCanvasData.scale);
+      setPosition({
+        x: initialCanvasData.position.x,
+        y: initialCanvasData.position.y,
+      });
+    }
+  }, [initialCanvasData]);
 
   // Function to handle unscaling (converting from scaled to unscaled coordinates)
   const unScale = (val: number): number => {
@@ -95,14 +107,6 @@ const useGrid = ({
       y2: unScale(height) - stageRect.offset.y,
     };
 
-    // // Calculate full rectangle (bounds both stage and view)
-    // const fullRect = {
-    //   x1: Math.min(stageRect.x1, viewRect.x1),
-    //   y1: Math.min(stageRect.y1, viewRect.y1),
-    //   x2: Math.max(stageRect.x2, viewRect.x2),
-    //   y2: Math.max(stageRect.y2, viewRect.y2),
-    // };
-
     // Calculate grid offset to align with step size
     const gridOffset = {
       x: Math.ceil(unScale(stage.position().x) / stepSize) * stepSize,
@@ -125,7 +129,7 @@ const useGrid = ({
       y2: Math.max(stageRect.y2, gridRect.y2),
     };
 
-    // Set clipping area to prevent drawing outside viewport
+    // Set clipping area to prevent drawing outside viewport (Solution 4)
     gridLayer.clip({
       x: viewRect.x1,
       y: viewRect.y1,
@@ -133,12 +137,12 @@ const useGrid = ({
       height: viewRect.y2 - viewRect.y1,
     });
 
-    // Use gridFullRect for drawing
-    const fullRect2 = gridFullRect;
+    // Use gridFullRect for drawing (Solution 4)
+    const fullRect = gridFullRect;
 
     // Calculate grid sizes
-    const xSize = fullRect2.x2 - fullRect2.x1;
-    const ySize = fullRect2.y2 - fullRect2.y1;
+    const xSize = fullRect.x2 - fullRect.x1;
+    const ySize = fullRect.y2 - fullRect.y1;
 
     // Calculate number of steps
     const xSteps = Math.round(xSize / stepSize);
@@ -148,8 +152,8 @@ const useGrid = ({
     for (let i = 0; i <= xSteps; i++) {
       gridLayer.add(
         new Konva.Line({
-          x: fullRect2.x1 + i * stepSize,
-          y: fullRect2.y1,
+          x: fullRect.x1 + i * stepSize,
+          y: fullRect.y1,
           points: [0, 0, 0, ySize],
           stroke: gridColor,
           strokeWidth: 1,
@@ -162,8 +166,8 @@ const useGrid = ({
     for (let i = 0; i <= ySteps; i++) {
       gridLayer.add(
         new Konva.Line({
-          x: fullRect2.x1,
-          y: fullRect2.y1 + i * stepSize,
+          x: fullRect.x1,
+          y: fullRect.y1 + i * stepSize,
           points: [0, 0, xSize, 0],
           stroke: gridColor,
           strokeWidth: 1,
@@ -189,69 +193,6 @@ const useGrid = ({
     gridLayer.batchDraw();
   };
 
-  // Zoom functions
-  const zoomIn = () => {
-    if (!stageRef.current) return;
-
-    const stage = stageRef.current;
-    const oldScale = stage.scaleX();
-    const newScale = Math.min(oldScale * scaleStep, maxScale);
-
-    // Calculate center of stage
-    const centerX = stage.width() / 2;
-    const centerY = stage.height() / 2;
-
-    // Get current position
-    const oldPos = stage.position();
-
-    // Calculate new position (zoom to center)
-    const newPos = {
-      x: centerX - (centerX - oldPos.x) * (newScale / oldScale),
-      y: centerY - (centerY - oldPos.y) * (newScale / oldScale),
-    };
-
-    // Apply new scale and position
-    stage.scale({ x: newScale, y: newScale });
-    stage.position(newPos);
-
-    // Update state and notify of changes
-    updateView(newScale, newPos);
-
-    // Redraw grid
-    drawGridLines();
-  };
-
-  const zoomOut = () => {
-    if (!stageRef.current) return;
-
-    const stage = stageRef.current;
-    const oldScale = stage.scaleX();
-    const newScale = Math.max(oldScale / scaleStep, minScale);
-
-    // Calculate center of stage
-    const centerX = stage.width() / 2;
-    const centerY = stage.height() / 2;
-
-    // Get current position
-    const oldPos = stage.position();
-
-    // Calculate new position (zoom to center)
-    const newPos = {
-      x: centerX - (centerX - oldPos.x) * (newScale / oldScale),
-      y: centerY - (centerY - oldPos.y) * (newScale / oldScale),
-    };
-
-    // Apply new scale and position
-    stage.scale({ x: newScale, y: newScale });
-    stage.position(newPos);
-
-    // Update state and notify of changes
-    updateView(newScale, newPos);
-
-    // Redraw grid
-    drawGridLines();
-  };
-
   const resetView = () => {
     if (!stageRef.current) return;
 
@@ -264,6 +205,28 @@ const useGrid = ({
 
     // Redraw grid
     drawGridLines();
+  };
+
+  // Add a sync function to ensure scale state stays up to date with the stage
+  const syncStateWithStage = () => {
+    if (!stageRef.current) return;
+
+    const currentScale = stageRef.current.scaleX();
+    const currentPosition = {
+      x: stageRef.current.x(),
+      y: stageRef.current.y(),
+    };
+
+    // Only update if values actually changed
+    if (
+      scale !== currentScale ||
+      !position ||
+      position.x !== currentPosition.x ||
+      position.y !== currentPosition.y
+    ) {
+      setScale(currentScale);
+      setPosition(currentPosition);
+    }
   };
 
   // Handle wheel events for zooming
@@ -296,11 +259,8 @@ const useGrid = ({
     // Calculate new scale with limits
     let newScale =
       direction > 0
-        ? Math.min(oldScale * scaleStep, maxScale)
-        : Math.max(oldScale / scaleStep, minScale);
-
-    // Apply new scale
-    stage.scale({ x: newScale, y: newScale });
+        ? validateZoomScale(oldScale * scaleStep)
+        : validateZoomScale(oldScale / scaleStep);
 
     // Calculate new position to zoom to mouse pointer
     const newPos = {
@@ -308,7 +268,8 @@ const useGrid = ({
       y: pointer.y - mousePointTo.y * newScale,
     };
 
-    // Apply new position
+    // Apply new scale and position
+    stage.scale({ x: newScale, y: newScale });
     stage.position(newPos);
 
     // Update state and notify of changes
@@ -318,25 +279,50 @@ const useGrid = ({
     drawGridLines();
   };
 
+  // Effect to sync with stage on window focus
+  useEffect(() => {
+    const handleFocus = () => {
+      syncStateWithStage();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, []);
+
   // Initialize grid drawing and stage properties
   useEffect(() => {
     if (!stageRef.current || !gridLayerRef.current) return;
+    if (!initialCanvasData) return; // Wait for data
+
+    // Only initialize once
+    if (isInitializedRef.current) return;
+    isInitializedRef.current = true;
 
     // Make stage draggable for panning
     stageRef.current.draggable(true);
 
-    // Set initial scale and position from CanvasData if available
-    if (initialCanvasData) {
-      stageRef.current.scale({
-        x: initialCanvasData.scale,
-        y: initialCanvasData.scale,
-      });
+    // Use the exact scale from the database (no validation/limits here)
+    const exactScale = initialCanvasData.scale;
 
-      stageRef.current.position({
-        x: initialCanvasData.position.x,
-        y: initialCanvasData.position.y,
-      });
-    }
+    // Set initial scale and position from CanvasData
+    stageRef.current.scale({
+      x: exactScale,
+      y: exactScale,
+    });
+
+    stageRef.current.position({
+      x: initialCanvasData.position.x,
+      y: initialCanvasData.position.y,
+    });
+
+    // Make sure the state matches what we just set on the stage
+    setScale(exactScale);
+    setPosition({
+      x: initialCanvasData.position.x,
+      y: initialCanvasData.position.y,
+    });
 
     // Initial draw of grid
     drawGridLines();
@@ -367,21 +353,79 @@ const useGrid = ({
     stage.on("dragend", handleDragEnd);
     stage.on("dragmove", handleDragMove);
 
+    // Force an additional redraw on the next frame to ensure grid is visible
+    requestAnimationFrame(() => {
+      drawGridLines();
+    });
+
+    // Sometimes it takes a moment for the stage to be fully sized
+    // Use a short delay to ensure grid is properly drawn
+    setTimeout(() => {
+      drawGridLines();
+    }, 200);
+
     // Remove event listeners on cleanup
     return () => {
       stage.off("dragend", handleDragEnd);
       stage.off("dragmove", handleDragMove);
     };
-  }, [stageRef.current, gridLayerRef.current, initialCanvasData]);
+  }, [initialCanvasData]);
+
+  // Effect to update state when initialCanvasData changes
+  useEffect(() => {
+    if (initialCanvasData && !isInitializedRef.current) {
+      // This handles the case where initialCanvasData arrives after initial render
+      const exactScale = initialCanvasData.scale;
+
+      setScale(exactScale);
+      setPosition({
+        x: initialCanvasData.position.x,
+        y: initialCanvasData.position.y,
+      });
+
+      // If stage is already rendered, update it too
+      if (stageRef.current) {
+        stageRef.current.scale({
+          x: exactScale,
+          y: exactScale,
+        });
+        stageRef.current.position({
+          x: initialCanvasData.position.x,
+          y: initialCanvasData.position.y,
+        });
+
+        // Ensure grid is drawn
+        drawGridLines();
+      }
+    }
+  }, [initialCanvasData]);
+
+  // Add a general effect to draw grid when component mounts
+  useEffect(() => {
+    if (stageRef.current && gridLayerRef.current) {
+      // Initial draw might need multiple attempts
+      drawGridLines();
+
+      // Redraw after a small delay to ensure proper sizing
+      const timer = setTimeout(() => {
+        drawGridLines();
+      }, 100);
+
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   // Get current canvas data for saving
   const getCanvasData = (): CanvasData => {
     if (!stageRef.current) {
       return {
-        scale: scale,
-        position: position,
+        scale: scale || 1,
+        position: position || { x: 0, y: 0 },
       };
     }
+
+    // Sync state with stage before returning
+    syncStateWithStage();
 
     return {
       scale: stageRef.current.scaleX(),
@@ -392,13 +436,76 @@ const useGrid = ({
     };
   };
 
+  // Function to validate zoom scale (only for user-initiated zooms)
+  const validateZoomScale = (desiredScale: number): number => {
+    return Math.min(Math.max(desiredScale, minScale), maxScale);
+  };
+
   return {
     stageRef,
     gridLayerRef,
-    scale,
-    position,
-    zoomIn,
-    zoomOut,
+    scale: scale || 1, // Always return a valid scale for UI
+    position: position || { x: 0, y: 0 },
+    zoomIn: () => {
+      if (!stageRef.current) return;
+      const stage = stageRef.current;
+      const oldScale = stage.scaleX();
+      // Apply limits only on zooming, not on initial load
+      const newScale = validateZoomScale(oldScale * scaleStep);
+
+      // Calculate center of stage
+      const centerX = stage.width() / 2;
+      const centerY = stage.height() / 2;
+
+      // Get current position
+      const oldPos = stage.position();
+
+      // Calculate new position (zoom to center)
+      const newPos = {
+        x: centerX - (centerX - oldPos.x) * (newScale / oldScale),
+        y: centerY - (centerY - oldPos.y) * (newScale / oldScale),
+      };
+
+      // Apply new scale and position
+      stage.scale({ x: newScale, y: newScale });
+      stage.position(newPos);
+
+      // Update state and notify of changes
+      updateView(newScale, newPos);
+
+      // Redraw grid
+      drawGridLines();
+    },
+    zoomOut: () => {
+      if (!stageRef.current) return;
+      const stage = stageRef.current;
+      const oldScale = stage.scaleX();
+      // Apply limits only on zooming, not on initial load
+      const newScale = validateZoomScale(oldScale / scaleStep);
+
+      // Calculate center of stage
+      const centerX = stage.width() / 2;
+      const centerY = stage.height() / 2;
+
+      // Get current position
+      const oldPos = stage.position();
+
+      // Calculate new position (zoom to center)
+      const newPos = {
+        x: centerX - (centerX - oldPos.x) * (newScale / oldScale),
+        y: centerY - (centerY - oldPos.y) * (newScale / oldScale),
+      };
+
+      // Apply new scale and position
+      stage.scale({ x: newScale, y: newScale });
+      stage.position(newPos);
+
+      // Update state and notify of changes
+      updateView(newScale, newPos);
+
+      // Redraw grid
+      drawGridLines();
+    },
     resetView,
     handleWheel,
     drawGridLines,
