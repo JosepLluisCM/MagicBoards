@@ -5,7 +5,7 @@ import {
   createCanvas,
   deleteCanvas,
 } from "../../../api/services/CanvasService";
-import { canvasListItem } from "@/types/canvasListItem";
+import { canvasListItem } from "@/types/CanvasListItem";
 
 export const useCanvasSelection = () => {
   const navigate = useNavigate();

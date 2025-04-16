@@ -7,7 +7,7 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { X } from "lucide-react";
-import { canvasListItem } from "@/types/canvasListItem";
+import { canvasListItem } from "@/types/CanvasListItem";
 import { formatDate } from "@/utils/timeUtils";
 
 interface CanvasCardProps {

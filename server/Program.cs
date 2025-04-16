@@ -1,3 +1,4 @@
+using Amazon;
 using DotNetEnv;
 using server.Services;
 using System.Text.Json.Serialization;
@@ -22,6 +23,7 @@ if (string.IsNullOrEmpty(r2CredPath) || !File.Exists(r2CredPath))
 
 // Register FirestoreService as a singleton
 builder.Services.AddSingleton<FirestoreService>();
+AWSConfigsS3.UseSignatureVersion4 = true;
 builder.Services.AddSingleton<R2CloudflareService>();
 builder.Services.AddSingleton<ImagesService>();
 builder.Services.AddSingleton<CanvasesService>();

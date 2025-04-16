@@ -95,13 +95,13 @@ const useGrid = ({
       y2: unScale(height) - stageRect.offset.y,
     };
 
-    // Calculate full rectangle (bounds both stage and view)
-    const fullRect = {
-      x1: Math.min(stageRect.x1, viewRect.x1),
-      y1: Math.min(stageRect.y1, viewRect.y1),
-      x2: Math.max(stageRect.x2, viewRect.x2),
-      y2: Math.max(stageRect.y2, viewRect.y2),
-    };
+    // // Calculate full rectangle (bounds both stage and view)
+    // const fullRect = {
+    //   x1: Math.min(stageRect.x1, viewRect.x1),
+    //   y1: Math.min(stageRect.y1, viewRect.y1),
+    //   x2: Math.max(stageRect.x2, viewRect.x2),
+    //   y2: Math.max(stageRect.y2, viewRect.y2),
+    // };
 
     // Calculate grid offset to align with step size
     const gridOffset = {

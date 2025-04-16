@@ -5,14 +5,13 @@ import {
   Text,
   Image as KonvaImage,
   Transformer,
-  Line,
-  Rect,
 } from "react-konva";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "../ui/button";
 import { getCanvas, updateCanvas } from "@/api/services/CanvasService";
 import {
   uploadImage,
+  getImagePresignedUrl,
   getImage,
   deleteImage,
 } from "@/api/services/ImagesService";
@@ -22,7 +21,6 @@ import {
   CanvasElement,
   CanvasElementType,
 } from "@/types/canvas";
-import Konva from "konva";
 import useGrid from "./hooks/useGrid";
 
 const Canvas = () => {
@@ -146,6 +144,7 @@ const Canvas = () => {
         try {
           // Get the image from the server using the imageId
           const imageUrl = await getImage(element.imageId);
+          //const imageUrl = await getImagePresignedUrl(element.imageId);
 
           // Create a new image from the blob URL
           const img = new Image();
@@ -271,15 +270,36 @@ const Canvas = () => {
     if (!canvas || !id) return;
 
     const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      try {
-        setIsUploading(true);
+    if (!selectedFile) return;
+
+    try {
+      setIsUploading(true);
+
+      // Step 1: Upload the image to server and get the image key
+      const imageId = await uploadImage(selectedFile, {
+        canvasId: id,
+        userId: "ADMIN", // This should be the actual user ID in production
+      });
+
+      console.log("Image uploaded successfully with ID:", imageId);
+
+      // Step 2: Get the image from the server using the presigned URL
+      const imageUrl = await getImage(imageId);
+      //const imageUrl = await getImagePresignedUrl(imageId);
+
+      // Step 3: Load the image
+      const img = new Image();
+      img.src = imageUrl;
+
+      img.onload = async () => {
+        // Add image to loaded images collection
+        setLoadedImages((prev) => ({
+          ...prev,
+          [imageId]: img,
+        }));
+
+        // Step 4: Create element and add image to canvas
         const elementId = generateId();
-
-        // Create a local URL for instant display
-        const localImageUrl = URL.createObjectURL(selectedFile);
-
-        // Create a new element with a temporary ID
         const newElement: CanvasElement = {
           id: elementId,
           type: CanvasElementType.Image,
@@ -295,120 +315,40 @@ const Canvas = () => {
             },
             rotation: 0,
           },
-          content: "", // Content is not used for images
-          imageId: "temp_" + elementId, // Temporary ID until upload completes
+          content: "",
+          imageId: imageId,
         };
 
-        // Load the local image immediately
-        const localImg = new Image();
-        localImg.src = localImageUrl;
+        // Step 5: Update canvas state with new element
+        const updatedCanvas = {
+          ...canvas,
+          elements: [...canvas.elements, newElement],
+          updatedAt: new Date().toISOString(),
+        };
 
-        localImg.onload = () => {
-          // Add local image to loaded images
-          setLoadedImages((prev) => ({
-            ...prev,
-            ["temp_" + elementId]: localImg,
-          }));
+        setCanvas(updatedCanvas);
 
-          // Update canvas with new element showing local image
-          setCanvas((prev) => {
-            if (!prev) return prev;
-            return {
-              ...prev,
-              elements: [...prev.elements, newElement],
-              updatedAt: new Date().toISOString(),
-            };
-          });
-
-          // Mark that we have changes
+        // Step 6: Save the updated canvas to the server
+        try {
+          await updateCanvas(updatedCanvas);
+          setHasUnsavedChanges(false);
+          console.log("Canvas saved after image upload");
+        } catch (err) {
+          console.error("Error saving canvas after image upload:", err);
           setHasUnsavedChanges(true);
-        };
+        }
+      };
 
-        // Upload the image in the background
-        const uploadPromise = uploadImage(selectedFile, {
-          canvasId: id,
-          userId: "ADMIN",
-        });
-
-        // Don't wait for the upload to complete
-        uploadPromise
-          .then(async (imagePath) => {
-            console.log("Image uploaded, path:", imagePath);
-
-            try {
-              // Get the actual image from the server
-              const serverImageUrl = await getImage(imagePath);
-              console.log("Server image URL created:", serverImageUrl);
-
-              // Load the server image
-              const serverImg = new Image();
-              serverImg.src = serverImageUrl;
-
-              serverImg.onload = () => {
-                // Add server image to loaded images
-                setLoadedImages((prev) => {
-                  const newImages = { ...prev };
-                  // Replace the temporary image with the server image
-                  newImages[imagePath] = serverImg;
-                  // We can delete the temporary image
-                  delete newImages["temp_" + elementId];
-                  return newImages;
-                });
-
-                // Update the canvas element to use the server image ID
-                setCanvas((prev) => {
-                  if (!prev) return prev;
-
-                  const updatedElements = prev.elements.map((el) => {
-                    if (el.id === elementId) {
-                      return {
-                        ...el,
-                        imageId: imagePath, // Replace temporary ID with server ID
-                      };
-                    }
-                    return el;
-                  });
-
-                  const updatedCanvas = {
-                    ...prev,
-                    elements: updatedElements,
-                    updatedAt: new Date().toISOString(),
-                  };
-
-                  // Save canvas to server
-                  updateCanvas(updatedCanvas)
-                    .then(() => {
-                      setHasUnsavedChanges(false);
-                      console.log("Canvas saved after image upload");
-                    })
-                    .catch((err) => {
-                      console.error("Error saving canvas after upload:", err);
-                      // Keep hasUnsavedChanges true so user can retry save
-                    });
-
-                  return updatedCanvas;
-                });
-
-                // Clean up the temporary image URL
-                URL.revokeObjectURL(localImageUrl);
-              };
-            } catch (err) {
-              console.error("Error getting uploaded image:", err);
-              // Keep the local image if server image fails
-            } finally {
-              setIsUploading(false);
-            }
-          })
-          .catch((err) => {
-            console.error("Error uploading image:", err);
-            setError("Failed to upload image. Using local version for now.");
-            setIsUploading(false);
-          });
-      } catch (err) {
-        console.error("Error handling file:", err);
-        setError("Failed to process image");
-        setIsUploading(false);
-      }
+      img.onerror = (error) => {
+        console.error("Error loading image:", error);
+        setError("Failed to load uploaded image");
+        setHasUnsavedChanges(true);
+      };
+    } catch (err) {
+      console.error("Error uploading image:", err);
+      setError("Failed to upload image");
+    } finally {
+      setIsUploading(false);
     }
   };
 

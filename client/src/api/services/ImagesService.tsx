@@ -43,6 +43,14 @@ export async function getImage(imagePath: string) {
   return URL.createObjectURL(response.data);
 }
 
+export async function getImagePresignedUrl(imagePath: string) {
+  const response = await apiClient.get(
+    `images/presigned/${encodeURIComponent(imagePath)}`
+  );
+
+  return response.data.url;
+}
+
 export async function deleteImage(imagePath: string) {
   const response = await apiClient.delete(
     `images/${encodeURIComponent(imagePath)}`

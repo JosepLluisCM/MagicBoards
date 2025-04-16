@@ -3,6 +3,7 @@ using Amazon.S3.Model;
 using Amazon.Runtime;
 using System.Text.Json;
 using System.Net;
+using Amazon;
 
 namespace server.Services
 {
@@ -18,6 +19,8 @@ namespace server.Services
     {
         private readonly IAmazonS3 _s3Client;
         private readonly string _bucketName;
+
+        //AWSConfigsS3.UseSignatureVersion4 = true;
 
         public R2CloudflareService()
         {

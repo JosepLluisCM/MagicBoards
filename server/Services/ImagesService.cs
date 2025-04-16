@@ -80,6 +80,30 @@ namespace server.Services
             }
         }
 
+        public async Task<string> GetImagePresignedUrl(string imagePath)
+        {
+            try
+            {
+                // Create a request to get the object from R2
+                var request = new GetPreSignedUrlRequest
+                {
+                    BucketName = _bucketName,
+                    Key = imagePath,
+                    Expires = DateTime.UtcNow.AddMinutes(15)
+                };
+
+                // Get the object from R2
+                string response = await _s3Client.GetPreSignedURLAsync(request);
+
+                // Return the stream and content type
+                return response;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to retrieve imageURL: {ex.Message}", ex);
+            }
+        }
+
         public async Task DeleteImageAsync(string imagePath)
         {
         

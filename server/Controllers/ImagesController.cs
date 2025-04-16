@@ -56,6 +56,24 @@ namespace server.Controllers
             }
         }
 
+        [HttpGet("presigned/{*imagePath}")]
+        public async Task<IActionResult> GetImagePresignedUrl(string imagePath)
+        {
+            try
+            {
+                string formattedPath = System.Net.WebUtility.UrlDecode(imagePath);
+
+                string presignedUrl = await _imagesService.GetImagePresignedUrl(formattedPath);
+
+                return Ok(new { url = presignedUrl });
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Error retrieving image {imagePath}: {ex.Message}");
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
         [HttpDelete("{*imagePath}")]
         public async Task<IActionResult> DeleteImage(string imagePath)
         {
