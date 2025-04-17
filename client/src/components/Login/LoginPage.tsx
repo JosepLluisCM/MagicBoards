@@ -10,13 +10,24 @@ import {
 import { FcGoogle } from "react-icons/fc";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleGoogleLogin = () => {
     // Mock login - will be replaced with actual authentication later
+    const mockUser = {
+      id: "1",
+      name: "Test User",
+      email: "user@example.com",
+      avatarUrl: "",
+    };
+
+    login(mockUser);
     toast.success("Logged in successfully!");
+
     // Redirect to canvas selection after login
     setTimeout(() => {
       navigate("/canvas-selection");
