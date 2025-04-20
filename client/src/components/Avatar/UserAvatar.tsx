@@ -10,15 +10,27 @@ import {
 import { LogOut, User as UserIcon } from "lucide-react";
 
 export function UserAvatar() {
-  const { user, logout } = useAuth();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
 
-  if (!user) return null;
+  // Don't render anything while authentication is being checked
+  if (isLoading) return null;
+
+  // Don't render if not authenticated
+  if (!isAuthenticated || !user) return null;
 
   const initials = user.name
     .split(" ")
     .map((part) => part[0])
+    .slice(0, 2) // Only keep the first 2 initials
     .join("")
     .toUpperCase();
+
+  // console.log("UserAvatar rendering with:", {
+  //   userExists: !!user,
+  //   avatarUrl: user.avatarUrl,
+  //   avatarUrlLength: user.avatarUrl.length,
+  //   name: user.name,
+  // });
 
   return (
     <DropdownMenu>

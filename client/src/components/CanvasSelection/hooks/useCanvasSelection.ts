@@ -6,6 +6,7 @@ import {
   deleteCanvas,
 } from "../../../api/services/CanvasService";
 import { canvasListItem } from "@/types/CanvasListItem";
+import { CreateCanvasRequest } from "@/types/requests/CreateCanvasRequest";
 
 export const useCanvasSelection = () => {
   const navigate = useNavigate();
@@ -46,7 +47,8 @@ export const useCanvasSelection = () => {
 
     setIsSubmitting(true);
     try {
-      const newCanvas = await createCanvas(newCanvasName);
+      const request: CreateCanvasRequest = { name: newCanvasName };
+      const newCanvas = await createCanvas(request);
       // Add new canvas and re-sort the list to ensure the most recently updated is at the top
       const updatedList = [...canvasesList, newCanvas as canvasListItem].sort(
         (a, b) =>

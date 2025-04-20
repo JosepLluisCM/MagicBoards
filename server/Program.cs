@@ -1,6 +1,7 @@
 using Amazon;
 using DotNetEnv;
 using server.Services;
+using server.Utilities;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,11 +23,15 @@ if (string.IsNullOrEmpty(r2CredPath) || !File.Exists(r2CredPath))
 }
 
 // Register FirestoreService as a singleton
+builder.Services.AddSingleton<FirebaseAdminService>();
 builder.Services.AddSingleton<FirestoreService>();
+
 AWSConfigsS3.UseSignatureVersion4 = true;
 builder.Services.AddSingleton<R2CloudflareService>();
+
 builder.Services.AddSingleton<ImagesService>();
 builder.Services.AddSingleton<CanvasesService>();
+builder.Services.AddSingleton<UsersService>();
 
 
 
@@ -40,16 +45,38 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddCors(options =>
+
+
+
+// Add CORS policy based on environment
+if (builder.Environment.IsDevelopment())
 {
-    options.AddPolicy("AllowAnyOrigin",
-        policy =>
-        {
-            policy.AllowAnyOrigin()
-                  .AllowAnyHeader()
-                  .AllowAnyMethod();
-        });
-});
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("CorsPolicy",
+            policy =>
+            {
+                policy.WithOrigins("http://localhost:5173")
+                      .AllowAnyHeader()
+                      .AllowAnyMethod()
+                      .AllowCredentials();
+            });
+    });
+}
+else
+{
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("CorsPolicy",
+            policy =>
+            {
+                policy.WithOrigins("https://your-production-domain.com")
+                      .AllowAnyHeader()
+                      .AllowAnyMethod()
+                      .AllowCredentials();
+            });
+    });
+}
 
 builder.WebHost.ConfigureKestrel(serverOptions =>
 {
@@ -71,12 +98,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseCors("AllowAnyOrigin");
+app.UseCors("CorsPolicy");
 app.UseHttpsRedirection();
 
-app.UseAuthorization();
-
-//app.UseRouting();
+app.UseSessionAuth();
 
 app.MapControllers();
 

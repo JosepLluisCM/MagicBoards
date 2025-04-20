@@ -18,7 +18,7 @@ namespace server.Controllers
         }
 
         [HttpPost("upload")]
-        public async Task<IActionResult> UploadImage([FromForm] AddImageRequest request, IFormFile image)
+        public async Task<IActionResult> UploadImage([FromForm] UploadImageRequest request, IFormFile image)
         {
             try
             {

@@ -11,27 +11,33 @@ import { FcGoogle } from "react-icons/fc";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEffect, useState } from "react";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, isAuthenticated, isLoading } = useAuth();
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  const handleGoogleLogin = () => {
-    // Mock login - will be replaced with actual authentication later
-    const mockUser = {
-      id: "1",
-      name: "Test User",
-      email: "user@example.com",
-      avatarUrl: "",
-    };
-
-    login(mockUser);
-    toast.success("Logged in successfully!");
-
-    // Redirect to canvas selection after login
-    setTimeout(() => {
+  // Handle navigation in useEffect instead of during render
+  useEffect(() => {
+    if (isAuthenticated && !isLoading) {
       navigate("/canvas-selection");
-    }, 1000);
+    }
+  }, [isAuthenticated, isLoading, navigate]);
+
+  const handleGoogleLogin = async () => {
+    if (isLoggingIn) return;
+
+    setIsLoggingIn(true);
+    try {
+      await login();
+      toast.success("Logged in successfully!");
+    } catch (error) {
+      toast.error("Login failed. Please try again.");
+      console.error("Login error:", error);
+    } finally {
+      setIsLoggingIn(false);
+    }
   };
 
   return (
@@ -49,9 +55,16 @@ export default function LoginPage() {
               <Button
                 className="w-full flex items-center justify-center gap-2 py-5 transition-all hover:shadow-md"
                 onClick={handleGoogleLogin}
+                disabled={isLoggingIn || isLoading}
               >
-                <FcGoogle className="size-5" />
-                <span>Continue with Google</span>
+                {isLoggingIn ? (
+                  <span>Connecting...</span>
+                ) : (
+                  <>
+                    <FcGoogle className="size-5" />
+                    <span>Continue with Google</span>
+                  </>
+                )}
               </Button>
             </CardContent>
             <CardFooter>

@@ -21,5 +21,9 @@ export default defineConfig({
     watch: {
       usePolling: true,
     },
+    // headers: {
+    //   "Cross-Origin-Embedder-Policy": "unsafe-none",
+    //   "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
+    // },
   },
 });

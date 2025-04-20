@@ -19,7 +19,7 @@ namespace server.Services
             _bucketName = _r2CloudflareService.GetR2BucketName();
         }
 
-        public async Task<string> UploadImageAsync(AddImageRequest request, IFormFile imageFile)
+        public async Task<string> UploadImageAsync(UploadImageRequest request, IFormFile imageFile)
         {
             if (imageFile == null || imageFile.Length == 0)
                 throw new ArgumentException("No image file provided");
