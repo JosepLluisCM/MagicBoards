@@ -1,28 +1,18 @@
 import apiClient from "../apiClient";
-import type { UploadImageRequest } from "@/types/requests/UploadImageRequest";
-
 /**
  * Uploads an image to the server
  * @param imageFile File object to upload
  * @param request Additional parameters for the upload
  * @returns Path to the uploaded image
  */
-export async function uploadImage(
-  imageFile: File,
-  request?: UploadImageRequest
-) {
+export async function uploadImage(imageFile: File, id?: string) {
   try {
     // Create a FormData object to send the file
     const formData = new FormData();
     formData.append("image", imageFile);
 
-    // Add userId and canvasId to formData if provided
-    if (request?.userId) {
-      formData.append("userId", request.userId);
-    }
-
-    if (request?.canvasId) {
-      formData.append("canvasId", request.canvasId);
+    if (id) {
+      formData.append("canvasId", id);
     }
 
     // Send the image to the server

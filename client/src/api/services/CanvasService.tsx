@@ -2,6 +2,7 @@ import apiClient from "../apiClient";
 import { Canvas } from "@/types/canvas";
 import { canvasListItem } from "@/types/CanvasListItem";
 import { CreateCanvasRequest } from "@/types/requests/CreateCanvasRequest";
+import { UpdateCanvasRequest } from "@/types/requests/UpdateCanvasRequest";
 
 /**
  * Creates a new canvas
@@ -71,8 +72,12 @@ export async function getCanvas(id: string): Promise<Canvas> {
  */
 export async function updateCanvas(canvas: Canvas): Promise<Canvas> {
   try {
-    // Send with Pascal case as required by C# backend
-    const response = await apiClient.put(`canvases/${canvas.id}`, canvas);
+    const request: UpdateCanvasRequest = {
+      data: canvas.data,
+      elements: canvas.elements,
+    };
+
+    const response = await apiClient.put(`canvases/${canvas.id}`, request);
     return response.data;
   } catch (error) {
     // API client already handles error categorization and logging

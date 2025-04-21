@@ -26,9 +26,20 @@ namespace server.Services
         }
 
         public FirebaseApp GetFirebaseApp() => _firebaseApp;
-        public async Task<FirebaseToken> VerifySessionCookieAsync(string sessionCookie)
+
+        public async Task<string?> CheckCookieAsync(string sessionCookie, bool checkRevoked = false)
         {
-            return await FirebaseAuth.DefaultInstance.VerifySessionCookieAsync(sessionCookie);
+            try
+            {
+                var decoded = await FirebaseAuth.DefaultInstance
+                    .VerifySessionCookieAsync(sessionCookie, checkRevoked);
+
+                return decoded.Uid;
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 

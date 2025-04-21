@@ -36,19 +36,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   // USERS/LOGOUT (LOGOUT)
+  // const logout = useCallback(async () => {
+  //   try {
+  //     await signOut(auth);
+  //     await deleteSession();
+  //     setUser(null);
+  //     navigate("/login");
+  //   } catch (error) {
+  //     console.error("Logout failed:", error);
+  //     // Even if logout fails, still reset the user state and navigate to login
+  //     setUser(null);
+  //     navigate("/login");
+  //   }
+  // }, [navigate]);
   const logout = useCallback(async () => {
     try {
-      await signOut(auth);
-      await deleteSession();
-      setUser(null);
-      navigate("/login");
+      await signOut(auth); // Firebase logout
+      await deleteSession(); // Server-side session deletion
+      setUser(null); // Clear frontend state
+
+      // Add a delay before navigating or performing any other actions
+      setTimeout(() => {
+        window.location.href = "/login"; // Navigate to login page after delay
+      }, 2000); // 2000ms = 2 seconds
     } catch (error) {
       console.error("Logout failed:", error);
-      // Even if logout fails, still reset the user state and navigate to login
       setUser(null);
-      navigate("/login");
+      window.location.href = "/login";
     }
-  }, [navigate]);
+  }, []);
 
   // EVENT TO CATCH UNAUTHORIZED ACCESS FROM APICLIENT INTERCEPTOR
   useEffect(() => {
@@ -68,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const result = await signInWithPopup(auth, provider);
       const firebaseUser = result.user;
-      const idToken = await firebaseUser.getIdToken();
+      const idToken = await firebaseUser.getIdToken(true);
 
       const loginRequest: LoginRequest = {
         id: firebaseUser.uid,
@@ -82,17 +98,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const { user: serverUser } = await createSession(loginRequest);
       setUser(serverUser);
-
+      toast.success(`Welcome ${serverUser.name?.split(" ")[0] ?? "back"}! 🎉`);
       // Navigate to canvas selection after successful login
       //navigate("/canvas-selection");
-    } catch (error) {
-      const apiError = error as ApiError;
-      if (apiError.type === ErrorType.AUTH) {
-        toast.error("Authentication failed. Please try again.");
-      } else {
-        toast.error("Login failed. Please try again later.");
-      }
+    } catch (error: any) {
       console.error("Login failed:", error);
+
+      // Check for specific Firebase auth popup errors first
+      if (error.code === "auth/user-token-expired") {
+        toast.error("Please, wait a few seconds and try again.");
+      } else if (error.code === "auth/popup-closed-by-user") {
+        toast.info("Login was canceled. Please try again when ready.");
+      } else if (error.code === "auth/cancelled-popup-request") {
+        toast.info("Login process was interrupted. Please try again.");
+      } else {
+        // Fall back to your existing API error handling for other errors
+        const apiError = error as ApiError;
+        if (apiError.type === ErrorType.AUTH) {
+          toast.error("Authentication failed. Please try again.");
+        } else {
+          toast.error("Login failed. Please try again later.");
+        }
+      }
     }
   };
 

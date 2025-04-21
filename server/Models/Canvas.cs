@@ -48,7 +48,21 @@ namespace server.Models
                 Elements = new List<CanvasElement>(),
                 UserId = userId,
                 CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+        }
+
+        public static Canvas Update(Canvas originalCanvas, CanvasData canvasData, List<CanvasElement> elements)
+        {
+            return new Canvas
+            {
+                Id = originalCanvas.Id,
+                Name = originalCanvas.Name,
+                Data = canvasData,
+                Elements = elements,
+                UserId = originalCanvas.UserId,
+                CreatedAt = originalCanvas.CreatedAt,
+                UpdatedAt = DateTime.UtcNow
             };
         }
     }

@@ -31,10 +31,10 @@ export default function LoginPage() {
     setIsLoggingIn(true);
     try {
       await login();
-      toast.success("Logged in successfully!");
+      //toast.success("Logged in successfully!");
     } catch (error) {
       toast.error("Login failed. Please try again.");
-      console.error("Login error:", error);
+      //console.error("Login error:", error);
     } finally {
       setIsLoggingIn(false);
     }

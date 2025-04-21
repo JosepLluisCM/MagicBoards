@@ -17,6 +17,6 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 //const analytics = getAnalytics(app);
 const provider = new GoogleAuthProvider();
-//provider.setCustomParameters({ prompt: 'select_account' });
+provider.setCustomParameters({ prompt: "select_account" });
 
 export { auth, provider };

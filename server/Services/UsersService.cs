@@ -105,11 +105,10 @@ namespace server.Services
             try
             {
                 // Verify the session cookie
-                var decodedToken = await FirebaseAuth.DefaultInstance
-                    .VerifySessionCookieAsync(sessionCookie, checkRevoked: true);
+                string? uid = await _firebaseAdminService.CheckCookieAsync(sessionCookie, true);
 
-                var uid = decodedToken.Uid;
-        
+                if (string.IsNullOrEmpty(uid)) throw new UnauthorizedAccessException("Not authorised");
+
                 // Retrieve user data from Firestore using the same pattern as other methods
                 DocumentReference userRef = _firestoreDb.Collection("users").Document(uid);
                 DocumentSnapshot snapshot = await userRef.GetSnapshotAsync();
@@ -132,10 +131,13 @@ namespace server.Services
         {
             try
             {
-                var decodedToken = await FirebaseAuth.DefaultInstance
-                    .VerifySessionCookieAsync(sessionCookie);
+                // Verify the session cookie
+                string? uid = await _firebaseAdminService.CheckCookieAsync(sessionCookie, false);
 
-                await FirebaseAuth.DefaultInstance.RevokeRefreshTokensAsync(decodedToken.Uid);
+                if (string.IsNullOrEmpty(uid)) throw new UnauthorizedAccessException("Not authorised");
+
+                await FirebaseAuth.DefaultInstance.RevokeRefreshTokensAsync(uid);
+                await Task.Delay(2000);
             }
             catch
             {
@@ -143,25 +145,25 @@ namespace server.Services
             }
         }
 
-        public async Task<bool> CheckCookieAsync(string sessionCookie)
-        {
-            if (string.IsNullOrEmpty(sessionCookie))
-            {
-                throw new ArgumentException("Session cookie is required");
-            }
+        //public async Task<string?> CheckCookieAsync(string sessionCookie)
+        //{
+        //    if (string.IsNullOrEmpty(sessionCookie))
+        //    {
+        //        throw new ArgumentException("Session cookie is required");
+        //    }
 
-            try
-            {
-                var decodedToken = await FirebaseAuth.DefaultInstance
-                    .VerifySessionCookieAsync(sessionCookie, checkRevoked: true);
+        //    try
+        //    {
+        //        var decodedToken = await FirebaseAuth.DefaultInstance
+        //            .VerifySessionCookieAsync(sessionCookie, checkRevoked: true);
 
-                return true;
-            }
-            catch (FirebaseAuthException)
-            {
-                // Invalid or expired session cookie
-                return false;
-            }
-        }
+        //        return decodedToken.Uid;
+        //    }
+        //    catch (FirebaseAuthException)
+        //    {
+        //        // Invalid or expired session cookie
+        //        return null;
+        //    }
+        //}
     }
 }

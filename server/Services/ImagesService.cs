@@ -1,5 +1,6 @@
 ﻿using Amazon.S3;
 using Amazon.S3.Model;
+using server.Models;
 using server.Models.Requests;
 using server.Utilities;
 using System.Text;
@@ -9,24 +10,27 @@ namespace server.Services
     public class ImagesService
     {
         private readonly R2CloudflareService _r2CloudflareService;
+        private readonly FirestoreService _firestoreService;
         private readonly IAmazonS3 _s3Client;
         private readonly string _bucketName;
 
-        public ImagesService(R2CloudflareService r2CloudflareService)
+        public ImagesService(R2CloudflareService r2CloudflareService, FirestoreService firestoreService)
         {
             _r2CloudflareService = r2CloudflareService;
+            _firestoreService = firestoreService;
             _s3Client = _r2CloudflareService.GetR2Client();
             _bucketName = _r2CloudflareService.GetR2BucketName();
         }
 
-        public async Task<string> UploadImageAsync(UploadImageRequest request, IFormFile imageFile)
+        public async Task<string> UploadImageAsync(string canvasId, IFormFile imageFile, string uid)
         {
-            if (imageFile == null || imageFile.Length == 0)
-                throw new ArgumentException("No image file provided");
+            bool isOwner = await _firestoreService.IsOwnerAsync(canvasId, uid, "canvases");
+
+            if (!isOwner) throw new UnauthorizedAccessException("You do not have permission to upload this image.");
 
             // Generate a unique file name or path
             string fileName = $"{Guid.NewGuid()}{Path.GetExtension(imageFile.FileName)}";
-            string filePath = $"{request.UserId}/{request.CanvasId}/{fileName}";
+            string filePath = $"{uid}/{canvasId}/{fileName}";
 
             // Create a memory stream to hold the file data
             using (var memoryStream = new MemoryStream())
@@ -53,10 +57,22 @@ namespace server.Services
             }
         }
 
-        public async Task<(Stream ImageStream, string ContentType)> GetImageAsync(string imagePath)
+        public async Task<(Stream ImageStream, string ContentType)> GetImageAsync(string imagePath, string uid)
         {
             try
             {
+                //WE CHECK THE CANVASID AND USERID FROM THE PATH, AND CHECK OWNERSHIP
+                string[] parts = imagePath.Split('/');
+                string pathUserId = parts[0];
+                string pathCanvasId = parts[1];
+
+                bool isOwner = await _firestoreService.IsOwnerAsync(pathCanvasId, uid, "canvases");
+
+                if (pathUserId != uid || !isOwner)
+                {
+                    throw new UnauthorizedAccessException("You do not have permission to view this image.");
+                }
+
                 // Create a request to get the object from R2
                 var request = new GetObjectRequest
                 {
@@ -80,10 +96,22 @@ namespace server.Services
             }
         }
 
-        public async Task<string> GetImagePresignedUrl(string imagePath)
+        public async Task<string> GetImagePresignedUrl(string imagePath, string uid)
         {
             try
             {
+                //WE CHECK THE CANVASID AND USERID FROM THE PATH, AND CHECK OWNERSHIP
+                string[] parts = imagePath.Split('/');
+                string pathUserId = parts[0];
+                string pathCanvasId = parts[1];
+
+                bool isOwner = await _firestoreService.IsOwnerAsync(pathCanvasId, uid, "canvases");
+
+                if (pathUserId != uid || !isOwner)
+                {
+                    throw new UnauthorizedAccessException("You do not have permission to view this image.");
+                }
+
                 // Create a request to get the object from R2
                 var request = new GetPreSignedUrlRequest
                 {
@@ -104,21 +132,32 @@ namespace server.Services
             }
         }
 
-        public async Task DeleteImageAsync(string imagePath)
+        public async Task DeleteImageAsync(string imagePath, string uid)
         {
-        
-                DeleteObjectRequest deleteObjectRequest = new DeleteObjectRequest
-                {
-                    BucketName = _bucketName,
-                    Key = imagePath
-                };
+            //WE CHECK THE CANVASID AND USERID FROM THE PATH, AND CHECK OWNERSHIP
+            string[] parts = imagePath.Split('/');
+            string pathUserId = parts[0];
+            string pathCanvasId = parts[1];
 
-                await _s3Client.DeleteObjectAsync(deleteObjectRequest);
+            bool isOwner = await _firestoreService.IsOwnerAsync(pathCanvasId, uid, "canvases");
+
+            if (pathUserId != uid || !isOwner)
+            {
+                throw new UnauthorizedAccessException("You do not have permission to delete this Image.");
+            }
+
+            DeleteObjectRequest deleteObjectRequest = new DeleteObjectRequest
+            {
+                BucketName = _bucketName,
+                Key = imagePath
+            };
+
+            await _s3Client.DeleteObjectAsync(deleteObjectRequest);
         }
 
-        public async Task DeleteAllCanvasImagesAsync(string userId, string canvasId)
+        public async Task DeleteAllCanvasImagesAsync(string uid, string canvasId)
         {
-            string prefix = $"{userId}/{canvasId}/";
+            string prefix = $"{uid}/{canvasId}/";
 
             var listResponse = await _s3Client.ListObjectsV2Async(new ListObjectsV2Request
             {

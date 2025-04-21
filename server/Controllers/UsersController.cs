@@ -7,7 +7,7 @@ namespace server.Controllers
 {
     [ApiController]
     [Route("api/users")]
-    public class UsersController : ControllerBase
+    public class UsersController : CustomBaseController
     {
         private readonly UsersService _usersService;
         private readonly int SessionDurationDays = 14; // Default session duration
@@ -39,11 +39,23 @@ namespace server.Controllers
                         HttpOnly = true,
                         Secure = true,
                         SameSite = SameSiteMode.None,
+                        Path = "/",
                         //DEBUG
                         //Expires = DateTime.UtcNow.AddMinutes(10),
                         Expires = DateTime.UtcNow.AddDays(SessionDurationDays),
                     }
                 );
+
+                var graceUntil = DateTimeOffset.UtcNow.AddSeconds(5);
+                Response.Cookies.Append("grace_until", graceUntil.ToUnixTimeSeconds().ToString(), new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = true,
+                    Path = "/",
+                    SameSite = SameSiteMode.Lax,
+                    MaxAge = TimeSpan.FromSeconds(10), // <- short TTL,
+
+                });
 
                 return Ok(new
                 {
@@ -63,8 +75,8 @@ namespace server.Controllers
             try
             {
                 var sessionCookie = Request.Cookies["__session"];
-                if (string.IsNullOrEmpty(sessionCookie))
-                    return StatusCode(401, "Session cookie missing");
+
+                if (string.IsNullOrEmpty(sessionCookie)) throw new UnauthorizedAccessException("Unauthorised Acces");
 
                 var user = await _usersService.GetUserFromCookieAsync(sessionCookie);
 
@@ -84,12 +96,21 @@ namespace server.Controllers
             try
             {
                 var sessionCookie = Request.Cookies["__session"];
-                if (string.IsNullOrEmpty(sessionCookie))
-                    return StatusCode(401, "Session cookie missing");
+
+                if (string.IsNullOrEmpty(sessionCookie)) throw new UnauthorizedAccessException("Unauthorised Acces");
 
                 await _usersService.RevokeSessionForUserAsync(sessionCookie);
 
-                Response.Cookies.Delete("__session");
+                Response.Cookies.Delete("__session", new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.None,
+                    Path = "/",
+                    //DEBUG
+                    //Expires = DateTime.UtcNow.AddMinutes(10),
+                    Expires = DateTime.UtcNow.AddDays(SessionDurationDays),
+                });
 
                 return Ok(new { message = "Logged Out Succesfully" });
 

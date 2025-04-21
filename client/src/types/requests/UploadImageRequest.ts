@@ -1,4 +1,4 @@
-export interface UploadImageRequest {
-  userId?: string;
-  canvasId?: string;
-}
+// export interface UploadImageRequest {
+//   userId?: string;
+//   canvasId?: string;
+// }

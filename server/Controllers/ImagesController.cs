@@ -8,7 +8,7 @@ namespace server.Controllers
 {
     [Route("api/images")]
     [ApiController]
-    public class ImagesController : ControllerBase
+    public class ImagesController : CustomBaseController
     {
         private readonly ImagesService _imagesService;
 
@@ -18,15 +18,17 @@ namespace server.Controllers
         }
 
         [HttpPost("upload")]
-        public async Task<IActionResult> UploadImage([FromForm] UploadImageRequest request, IFormFile image)
+        public async Task<IActionResult> UploadImage([FromForm] string canvasId, IFormFile image)
         {
             try
             {
                 if (image == null || image.Length == 0)
                     return BadRequest("No image file provided");
-                
+
+                string uid = GetUserIdOrUnauthorized();
+
                 // Call the service method to upload the image
-                string imagePath = await _imagesService.UploadImageAsync(request, image);
+                string imagePath = await _imagesService.UploadImageAsync(canvasId, image, uid);
 
                 return Ok(new { imagePath = imagePath });
             }
@@ -43,7 +45,9 @@ namespace server.Controllers
             { 
                 string formattedPath = System.Net.WebUtility.UrlDecode(imagePath);
 
-                var (imageStream, contentType) = await _imagesService.GetImageAsync(formattedPath);
+                string uid = GetUserIdOrUnauthorized();
+
+                var (imageStream, contentType) = await _imagesService.GetImageAsync(formattedPath, uid);
 
                 Response.Headers.Append("Cache-Control", "public, max-age=86400"); // Cache for 1 day
 
@@ -56,6 +60,7 @@ namespace server.Controllers
             }
         }
 
+        [Obsolete("This endpoint is temporarily disabled but preserved for future use")]
         [HttpGet("presigned/{*imagePath}")]
         public async Task<IActionResult> GetImagePresignedUrl(string imagePath)
         {
@@ -63,7 +68,9 @@ namespace server.Controllers
             {
                 string formattedPath = System.Net.WebUtility.UrlDecode(imagePath);
 
-                string presignedUrl = await _imagesService.GetImagePresignedUrl(formattedPath);
+                string uid = GetUserIdOrUnauthorized();
+
+                string presignedUrl = await _imagesService.GetImagePresignedUrl(formattedPath, uid);
 
                 return Ok(new { url = presignedUrl });
             }
@@ -80,12 +87,15 @@ namespace server.Controllers
             try
             {
                 string formattedPath = System.Net.WebUtility.UrlDecode(imagePath);
-                await _imagesService.DeleteImageAsync(formattedPath);
+
+                string uid = GetUserIdOrUnauthorized();
+
+                await _imagesService.DeleteImageAsync(formattedPath, uid);
 
                 return Ok(new { 
                     message = "Image deleted successfully", 
                     imagePath = formattedPath 
-        });
+                });
             }
             catch (Exception ex)
             {

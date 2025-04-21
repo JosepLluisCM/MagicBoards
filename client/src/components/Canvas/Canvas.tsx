@@ -392,10 +392,7 @@ const Canvas = () => {
       setIsUploading(true);
 
       // Step 1: Upload the image to server and get the image key
-      const imageId = await uploadImage(selectedFile, {
-        canvasId: id,
-        userId: "ADMIN", // This should be the actual user ID in production
-      });
+      const imageId = await uploadImage(selectedFile, id);
 
       console.log("Image uploaded successfully with ID:", imageId);
 

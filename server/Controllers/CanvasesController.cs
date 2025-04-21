@@ -7,7 +7,7 @@ namespace server.Controllers
 {
     [ApiController]
     [Route("api/canvases")]
-    public class CanvasesController : ControllerBase
+    public class CanvasesController : CustomBaseController
     {
         private readonly CanvasesService _canvasesService;
 
@@ -21,7 +21,9 @@ namespace server.Controllers
         {
             try
             {
-                List<CanvasListItem> canvasList = await _canvasesService.GetCanvasesForUserAsync();
+                string uid = GetUserIdOrUnauthorized();
+
+                List<CanvasListItem> canvasList = await _canvasesService.GetCanvasesForUserAsync(uid);
                 return Ok(canvasList);
             }
             catch (Exception ex)
@@ -35,7 +37,9 @@ namespace server.Controllers
         {
             try
             {
-                Canvas newCanvas = await _canvasesService.CreateCanvasAsync(request);
+                string uid = GetUserIdOrUnauthorized();
+
+                Canvas newCanvas = await _canvasesService.CreateCanvasAsync(request, uid);
                 return Ok(newCanvas);
             }
             catch (Exception ex)
@@ -50,7 +54,9 @@ namespace server.Controllers
         {
             try
             {
-                await _canvasesService.DeleteCanvasAsync(canvasId);
+                string uid = GetUserIdOrUnauthorized();
+
+                await _canvasesService.DeleteCanvasAsync(canvasId, uid);
                 return Ok();
             }
             catch (Exception ex)
@@ -65,7 +71,9 @@ namespace server.Controllers
         {
             try
             {
-                Canvas canvas = await _canvasesService.GetCanvasAsync(canvasId);
+                string uid = GetUserIdOrUnauthorized();
+
+                Canvas canvas = await _canvasesService.GetCanvasAsync(canvasId, uid);
                 return Ok(canvas);
             }
             catch (Exception ex)
@@ -75,11 +83,13 @@ namespace server.Controllers
         }
 
         [HttpPut("{canvasId}")]
-        public async Task<IActionResult> UpdateCanvas(string canvasId, [FromBody] Canvas canvas)
+        public async Task<IActionResult> UpdateCanvas(string canvasId, [FromBody] UpdateCanvasRequest request)
         {
             try
             {
-                Canvas updatedCanvas = await _canvasesService.UpdateCanvasAsync(canvasId, canvas);
+                string uid = GetUserIdOrUnauthorized();
+
+                Canvas updatedCanvas = await _canvasesService.UpdateCanvasAsync(canvasId, request, uid);
                 return Ok(updatedCanvas);
             }
             catch (Exception ex)
