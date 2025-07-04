@@ -9,6 +9,7 @@ namespace server.Controllers
             string? uid = HttpContext.Items["uid"] as string;
             if (string.IsNullOrEmpty(uid))
                 throw new UnauthorizedAccessException("User is not authenticated.");
+            Console.Write("Check User Auth:", uid);
             return uid;
         }
     }

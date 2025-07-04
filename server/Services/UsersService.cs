@@ -2,6 +2,7 @@
 using Google.Cloud.Firestore;
 using server.Models;
 using server.Models.Requests;
+using server.Utilities;
 
 namespace server.Services
 {
@@ -22,7 +23,7 @@ namespace server.Services
         {
             if (string.IsNullOrEmpty(request.IdToken))
             {
-                throw new ArgumentException("ID token is required");
+                throw new ValidationException("ID token is required");
             }
 
             // Seems that this is not necessary as all the info comes from the client correctly
@@ -58,7 +59,7 @@ namespace server.Services
         {
             if (string.IsNullOrEmpty(idToken))
             {
-                throw new ArgumentException("ID token is required");
+                throw new ValidationException("ID token is required");
             }
             
             // Create the session cookie using Firebase Admin SDK
@@ -99,7 +100,7 @@ namespace server.Services
         {
             if (string.IsNullOrEmpty(sessionCookie))
             {
-                throw new ArgumentException("Session cookie is required");
+                throw new ValidationException("Session cookie is required");
             }
 
             try
@@ -107,7 +108,7 @@ namespace server.Services
                 // Verify the session cookie
                 string? uid = await _firebaseAdminService.CheckCookieAsync(sessionCookie, true);
 
-                if (string.IsNullOrEmpty(uid)) throw new UnauthorizedAccessException("Not authorised");
+                if (string.IsNullOrEmpty(uid)) throw new UnauthorizedOperationException("access user data");
 
                 // Retrieve user data from Firestore using the same pattern as other methods
                 DocumentReference userRef = _firestoreDb.Collection("users").Document(uid);
@@ -118,7 +119,7 @@ namespace server.Services
                     return snapshot.ConvertTo<User>();
                 }
         
-                return null;
+                throw new UserNotFoundException(uid);
             }
             catch (FirebaseAuthException)
             {
@@ -129,12 +130,16 @@ namespace server.Services
 
         public async Task RevokeSessionForUserAsync(string sessionCookie)
         {
+            if (string.IsNullOrEmpty(sessionCookie))
+            {
+                throw new ValidationException("Session cookie is required");
+            }
             try
             {
                 // Verify the session cookie
                 string? uid = await _firebaseAdminService.CheckCookieAsync(sessionCookie, false);
 
-                if (string.IsNullOrEmpty(uid)) throw new UnauthorizedAccessException("Not authorised");
+                if (string.IsNullOrEmpty(uid)) throw new UnauthorizedOperationException("revoke session");
 
                 await FirebaseAuth.DefaultInstance.RevokeRefreshTokensAsync(uid);
                 await Task.Delay(2000);

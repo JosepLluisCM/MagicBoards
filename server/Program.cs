@@ -2,6 +2,7 @@ using Amazon;
 using DotNetEnv;
 using server.Services;
 using server.Utilities;
+using Server.Urilities;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,7 +34,8 @@ builder.Services.AddSingleton<ImagesService>();
 builder.Services.AddSingleton<CanvasesService>();
 builder.Services.AddSingleton<UsersService>();
 
-
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options => 
@@ -89,6 +91,7 @@ builder.WebHost.ConfigureKestrel(serverOptions =>
 });
 
 var app = builder.Build();
+app.UseExceptionHandler();
 
 
 // Configure the HTTP request pipeline.

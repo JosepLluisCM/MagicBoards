@@ -41,37 +41,41 @@ namespace server.Utilities
                     }
                 }
 
+                string? userUid = null;
                 try
                 {
-                    string? userUid = await _firebaseAdminService.CheckCookieAsync(sessionCookie, checkRevoked);
-                    if (userUid != null)
-                    {
-                        context.Items["uid"] = userUid;
-
-                        // Optional: clear grace_until cookie after first success
-                        if (!checkRevoked)
-                        {
-                            context.Response.Cookies.Append("grace_until", "", new CookieOptions
-                            {
-                                Expires = DateTimeOffset.UnixEpoch,
-                                HttpOnly = true,
-                                Secure = true,
-                                SameSite = SameSiteMode.Strict
-                            });
-                        }
-
-                        await _next(context);
-                        return;
-                    }
+                    userUid = await _firebaseAdminService.CheckCookieAsync(sessionCookie, checkRevoked);
                 }
-                catch
+                catch (Exception ex)
                 {
                     // Token invalid or revoked
+                    Console.WriteLine($"Auth error: {ex.Message}");
+                }
+
+                if (userUid != null)
+                {
+                    context.Items["uid"] = userUid;
+
+                    // Optional: clear grace_until cookie after first success
+                    if (!checkRevoked)
+                    {
+                        context.Response.Cookies.Append("grace_until", "", new CookieOptions
+                        {
+                            Expires = DateTimeOffset.UnixEpoch,
+                            HttpOnly = true,
+                            Secure = true,
+                            SameSite = SameSiteMode.Strict
+                        });
+                    }
+
+                    await _next(context); // Let exceptions here bubble up to the global handler
+                    return;
                 }
             }
 
             // Unauthorized
             context.Response.StatusCode = 401;
+            return;
         }
     }
 

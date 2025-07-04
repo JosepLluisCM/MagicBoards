@@ -1,6 +1,7 @@
 ﻿using Google.Cloud.Firestore;
 using server.Models;
 using server.Models.Requests;
+using server.Utilities;
 
 namespace server.Services
 {
@@ -45,6 +46,8 @@ namespace server.Services
 
             await addedDocRef.SetAsync(newCanvas);
 
+            //throw new ItemNotFoundException(addedDocRef.Id);
+
             return newCanvas;
         }
 
@@ -56,7 +59,7 @@ namespace server.Services
             
             if (!snapshot.Exists)
             {
-                throw new KeyNotFoundException("Canvas not found.");
+                throw new CanvasNotFoundException(canvasId);
             }
             
             var canvas = snapshot.ConvertTo<Canvas>();
@@ -65,20 +68,12 @@ namespace server.Services
 
             if (canvas.UserId != uid)
             {
-                throw new UnauthorizedAccessException("You do not have permission to delete this canvas.");
+                throw new UnauthorizedOperationException("delete this canvas");
             }
 
-            try
-            {
-                // Delete all images associated with this canvas
-                await _imagesService.DeleteAllCanvasImagesAsync(canvasUserId, canvasId);
-                
-                await canvasRef.DeleteAsync();
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Error deleting canvas: ", ex);
-            }
+            // Delete all images associated with this canvas
+            await _imagesService.DeleteAllCanvasImagesAsync(canvasUserId, canvasId);
+            await canvasRef.DeleteAsync();
         }
 
         public async Task<Canvas> GetCanvasAsync(string canvasId, string uid)
@@ -88,14 +83,14 @@ namespace server.Services
 
             if (!snapshot.Exists)
             {
-                throw new Exception("Canvas not found");
+                throw new CanvasNotFoundException(canvasId);
             }
 
             var canvas = snapshot.ConvertTo<Canvas>();
 
             if (canvas.UserId != uid)
             {
-                throw new UnauthorizedAccessException("You do not have permission to see this canvas.");
+                throw new UnauthorizedOperationException("view this canvas");
             }
 
             return canvas;
@@ -108,14 +103,14 @@ namespace server.Services
 
             if (!snapshot.Exists)
             {
-                throw new Exception("Canvas not found");
+                throw new CanvasNotFoundException(canvasId);
             }
 
             var canvas = snapshot.ConvertTo<Canvas>();
 
             if (canvas.UserId != uid)
             {
-                throw new UnauthorizedAccessException("You do not have permission to see this canvas.");
+                throw new UnauthorizedOperationException("update this canvas");
             }
 
             Canvas updatedCanvas = Canvas.Update(canvas, request.Data, request.Elements);

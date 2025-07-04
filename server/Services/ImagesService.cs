@@ -59,76 +59,73 @@ namespace server.Services
 
         public async Task<(Stream ImageStream, string ContentType)> GetImageAsync(string imagePath, string uid)
         {
+            //WE CHECK THE CANVASID AND USERID FROM THE PATH, AND CHECK OWNERSHIP
+            string[] parts = imagePath.Split('/');
+            string pathUserId = parts[0];
+            string pathCanvasId = parts[1];
+
+            bool isOwner = await _firestoreService.IsOwnerAsync(pathCanvasId, uid, "canvases");
+
+            if (pathUserId != uid || !isOwner)
+            {
+                throw new UnauthorizedOperationException("view this image");
+            }
+
+            // Create a request to get the object from R2
+            var request = new GetObjectRequest
+            {
+                BucketName = _bucketName,
+                Key = imagePath
+                //DisablePayloadSigning = true
+            };
+
             try
             {
-                //WE CHECK THE CANVASID AND USERID FROM THE PATH, AND CHECK OWNERSHIP
-                string[] parts = imagePath.Split('/');
-                string pathUserId = parts[0];
-                string pathCanvasId = parts[1];
-
-                bool isOwner = await _firestoreService.IsOwnerAsync(pathCanvasId, uid, "canvases");
-
-                if (pathUserId != uid || !isOwner)
-                {
-                    throw new UnauthorizedAccessException("You do not have permission to view this image.");
-                }
-
-                // Create a request to get the object from R2
-                var request = new GetObjectRequest
-                {
-                    BucketName = _bucketName,
-                    Key = imagePath
-                    //DisablePayloadSigning = true
-                };
-
                 // Get the object from R2
                 var response = await _s3Client.GetObjectAsync(request);
-
                 // Determine the content type based on the file extension
                 string contentType = Utils.GetContentTypeFromPath(imagePath);
-
                 // Return the stream and content type
                 return (response.ResponseStream, contentType);
             }
-            catch (Exception ex)
+            catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                throw new Exception($"Failed to retrieve image: {ex.Message}", ex);
+                throw new ImageNotFoundException(imagePath);
             }
         }
 
         public async Task<string> GetImagePresignedUrl(string imagePath, string uid)
         {
+            //WE CHECK THE CANVASID AND USERID FROM THE PATH, AND CHECK OWNERSHIP
+            string[] parts = imagePath.Split('/');
+            string pathUserId = parts[0];
+            string pathCanvasId = parts[1];
+
+            bool isOwner = await _firestoreService.IsOwnerAsync(pathCanvasId, uid, "canvases");
+
+            if (pathUserId != uid || !isOwner)
+            {
+                throw new UnauthorizedOperationException("view this image");
+            }
+
+            // Create a request to get the object from R2
+            var request = new GetPreSignedUrlRequest
+            {
+                BucketName = _bucketName,
+                Key = imagePath,
+                Expires = DateTime.UtcNow.AddMinutes(15)
+            };
+
             try
             {
-                //WE CHECK THE CANVASID AND USERID FROM THE PATH, AND CHECK OWNERSHIP
-                string[] parts = imagePath.Split('/');
-                string pathUserId = parts[0];
-                string pathCanvasId = parts[1];
-
-                bool isOwner = await _firestoreService.IsOwnerAsync(pathCanvasId, uid, "canvases");
-
-                if (pathUserId != uid || !isOwner)
-                {
-                    throw new UnauthorizedAccessException("You do not have permission to view this image.");
-                }
-
-                // Create a request to get the object from R2
-                var request = new GetPreSignedUrlRequest
-                {
-                    BucketName = _bucketName,
-                    Key = imagePath,
-                    Expires = DateTime.UtcNow.AddMinutes(15)
-                };
-
                 // Get the object from R2
                 string response = await _s3Client.GetPreSignedURLAsync(request);
-
                 // Return the stream and content type
                 return response;
             }
-            catch (Exception ex)
+            catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                throw new Exception($"Failed to retrieve imageURL: {ex.Message}", ex);
+                throw new ImageNotFoundException(imagePath);
             }
         }
 
