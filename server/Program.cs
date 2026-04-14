@@ -33,6 +33,7 @@ builder.Services.AddSingleton<R2CloudflareService>();
 builder.Services.AddSingleton<ImagesService>();
 builder.Services.AddSingleton<CanvasesService>();
 builder.Services.AddSingleton<UsersService>();
+builder.Services.AddSingleton<LogsService>();
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();

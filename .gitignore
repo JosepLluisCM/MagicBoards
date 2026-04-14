@@ -5,11 +5,22 @@
 !*.env.*.template
 .DS_Store
 .vscode/
-secrets/
-certs/
 bin/
 obj/
 .vs/
+
+# Secrets & certs (never commit these)
+secrets/
+certs/
+
+# Claude Code (AI assistant local files — not for repo)
+.claude/
+CLAUDE.md
+AUDIT.md
+.claude.json
+.playwright-mcp/
+
+# IDE / tooling
 launchSettings.json
 
 
@@ -30,3 +41,6 @@ microservice/venv/
 docker-compose.override.yml
 docker-compose.prod.yml
 .fake
+
+# Logs
+logs/
