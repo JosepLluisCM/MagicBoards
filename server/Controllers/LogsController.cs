@@ -1,11 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using server.Services;
 
 namespace server.Controllers
 {
     [ApiController]
     [Route("api/logs")]
-    public class LogsController
+    public class LogsController : ControllerBase
     {
         private readonly LogsService _logsService;
 
@@ -13,14 +13,5 @@ namespace server.Controllers
         {
             _logsService = logsService;
         }
-
-        //[HttpGet("documents")]
-        //public async Task<IActionResult> GetDocuments()
-        //{
-        //    var collection = _firestoreDb.Collection("Logs");
-        //    var snapshot = await collection.GetSnapshotAsync();
-        //    return Ok(snapshot.Documents.Select(doc => doc.Id));
-        //}
-
     }
 }

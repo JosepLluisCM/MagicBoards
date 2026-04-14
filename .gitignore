@@ -17,6 +17,8 @@ certs/
 .claude/
 CLAUDE.md
 AUDIT.md
+.claude.json
+.playwright-mcp/
 
 # IDE / tooling
 launchSettings.json
@@ -39,3 +41,6 @@ microservice/venv/
 docker-compose.override.yml
 docker-compose.prod.yml
 .fake
+
+# Logs
+logs/
