@@ -69,10 +69,7 @@ const Canvas = () => {
     maxScale: 5,
     initialCanvasData: canvas?.data,
     onViewChange: () => {
-      // Set hasUnsavedChanges to true when position or scale changes
-      if (!hasUnsavedChanges) {
-        setHasUnsavedChanges(true);
-      }
+      scheduleAutoSave();
     },
   });
 
@@ -88,11 +85,13 @@ const Canvas = () => {
   // Add a timer ref for debouncing
   const debounceTimerRef = useRef<number | null>(null);
   const autoSaveTimerRef = useRef<number | null>(null);
+  // Tracks dirty state without triggering a re-render on every call
+  const isDirtyRef = useRef(false);
+  // Tracks active drag/pan to avoid saving mid-gesture
+  const isElementDraggingRef = useRef(false);
+  const isStagePanningRef = useRef(false);
 
   const { pushSnapshot, undo, redo, canUndo, canRedo } = useCanvasHistory();
-
-  // Add a ref to track if we're currently dragging an element
-  const isElementDraggingRef = useRef(false);
 
   const MIN_ELEMENT_SIZE = 20;
   const MAX_ELEMENT_SIZE = 2000;
@@ -139,7 +138,7 @@ const Canvas = () => {
     });
 
     // Mark as having unsaved changes
-    setHasUnsavedChanges(true);
+    scheduleAutoSave();
   };
 
   // Add a debounced version of updateCanvasData
@@ -286,19 +285,28 @@ const Canvas = () => {
     };
   }, [loadedImages]);
 
-  // Auto-save: triggers 2s after last unsaved change
-  useEffect(() => {
-    if (!hasUnsavedChanges) {
-      if (autoSaveTimerRef.current !== null) window.clearTimeout(autoSaveTimerRef.current);
-      return;
+  // Auto-save: resets the 10s timer on every call — call it on every mutation.
+  // isDirtyRef gates the setState so React only re-renders once per dirty session,
+  // not on every pan frame.
+  const scheduleAutoSave = () => {
+    if (!isDirtyRef.current) {
+      isDirtyRef.current = true;
+      setHasUnsavedChanges(true);
     }
+    if (autoSaveTimerRef.current !== null) window.clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = window.setTimeout(() => {
+      autoSaveTimerRef.current = null;
+      // Don't save mid-gesture — reschedule briefly so the save fires after the user lets go
+      if (isElementDraggingRef.current || isStagePanningRef.current) {
+        autoSaveTimerRef.current = window.setTimeout(() => {
+          autoSaveTimerRef.current = null;
+          saveCanvas();
+        }, 2000);
+        return;
+      }
       saveCanvas();
-    }, 2000);
-    return () => {
-      if (autoSaveTimerRef.current !== null) window.clearTimeout(autoSaveTimerRef.current);
-    };
-  }, [hasUnsavedChanges]);
+    }, 10000);
+  };
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -342,7 +350,7 @@ const Canvas = () => {
         const restored = undo(canvas.elements);
         if (restored) {
           setCanvas((prev) => prev ? { ...prev, elements: restored, updatedAt: new Date().toISOString() } : prev);
-          setHasUnsavedChanges(true);
+          scheduleAutoSave();
         }
         return;
       }
@@ -354,7 +362,7 @@ const Canvas = () => {
         const restored = redo(canvas.elements);
         if (restored) {
           setCanvas((prev) => prev ? { ...prev, elements: restored, updatedAt: new Date().toISOString() } : prev);
-          setHasUnsavedChanges(true);
+          scheduleAutoSave();
         }
         return;
       }
@@ -380,7 +388,7 @@ const Canvas = () => {
         };
         setCanvas((prev) => prev ? { ...prev, elements: [...prev.elements, duplicate], updatedAt: new Date().toISOString() } : prev);
         setSelectedId(duplicate.id);
-        setHasUnsavedChanges(true);
+        scheduleAutoSave();
         return;
       }
 
@@ -402,7 +410,7 @@ const Canvas = () => {
             updatedAt: new Date().toISOString(),
           };
         });
-        setHasUnsavedChanges(true);
+        scheduleAutoSave();
       }
     };
 
@@ -448,6 +456,10 @@ const Canvas = () => {
   const saveCanvas = async () => {
     if (!canvas) return;
 
+    if (autoSaveTimerRef.current !== null) {
+      window.clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
     setIsSaving(true);
     try {
       const currentViewData = getCanvasData();
@@ -457,8 +469,8 @@ const Canvas = () => {
         updatedAt: new Date().toISOString(),
       };
       await updateCanvas(updatedCanvas);
-      setCanvas(updatedCanvas);
       setHasUnsavedChanges(false);
+      isDirtyRef.current = false;
     } catch (err) {
       console.error("Error saving canvas:", err);
       setError("Failed to save canvas");
@@ -535,14 +547,14 @@ const Canvas = () => {
           setHasUnsavedChanges(false);
         } catch (err) {
           console.error("Error saving canvas after image upload:", err);
-          setHasUnsavedChanges(true);
+          scheduleAutoSave();
         }
       };
 
       img.onerror = (error) => {
         console.error("Error loading image:", error);
         setError("Failed to load uploaded image");
-        setHasUnsavedChanges(true);
+        scheduleAutoSave();
       };
     } catch (err) {
       console.error("Error uploading image:", err);
@@ -605,7 +617,7 @@ const Canvas = () => {
       textInputRef.current.value = "";
       textInputRef.current.style.display = "none";
 
-      setHasUnsavedChanges(true);
+      scheduleAutoSave();
 
       // Select the newly created text element
       setSelectedId(elementId);
@@ -660,7 +672,7 @@ const Canvas = () => {
       };
     });
 
-    setHasUnsavedChanges(true);
+    scheduleAutoSave();
   };
 
   // Handle image deletion — server call is immediate; no undo (re-upload would be too complex)
@@ -694,7 +706,7 @@ const Canvas = () => {
       try {
         await updateCanvas(updatedCanvas);
       } catch {
-        setHasUnsavedChanges(true);
+        scheduleAutoSave();
       } finally {
         setIsSaving(false);
       }
@@ -718,7 +730,7 @@ const Canvas = () => {
     const elementsAfterDelete = canvas.elements.filter((el) => el.id !== selectedId);
     setCanvas((prev) => prev ? { ...prev, elements: elementsAfterDelete, updatedAt: new Date().toISOString() } : prev);
     setSelectedId(null);
-    setHasUnsavedChanges(true);
+    scheduleAutoSave();
 
     toast("Element deleted", {
       duration: 5000,
@@ -729,7 +741,7 @@ const Canvas = () => {
             if (!prev) return prev;
             return { ...prev, elements: canvas.elements, updatedAt: new Date().toISOString() };
           });
-          setHasUnsavedChanges(true);
+          scheduleAutoSave();
         },
       },
     });
@@ -814,7 +826,7 @@ const Canvas = () => {
       };
     });
 
-    setHasUnsavedChanges(true);
+    scheduleAutoSave();
 
     // No immediate save to server - user will need to click Save button
   };
@@ -862,7 +874,12 @@ const Canvas = () => {
     );
 
   return (
-    <div className="w-screen h-screen overflow-hidden" tabIndex={0}>
+    <div className="w-screen h-screen overflow-hidden relative" tabIndex={0}>
+      {isSaving && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 select-none pointer-events-none">
+          <span className="text-white text-sm font-medium tracking-wide">Saving…</span>
+        </div>
+      )}
       <div className="absolute top-4 left-4 flex gap-2 z-10">
         <Button
           onClick={() => navigate("/canvas-selection")}
@@ -970,6 +987,7 @@ const Canvas = () => {
               !isElementDraggingRef.current
             ) {
               stageRef.current.draggable(true);
+              isStagePanningRef.current = true;
             }
           }}
           onMouseUp={(e) => {
@@ -977,6 +995,7 @@ const Canvas = () => {
             const stage = e.target.getStage();
             if (stage && e.evt.button === 1 && stageRef.current) {
               stageRef.current.draggable(false);
+              isStagePanningRef.current = false;
             }
           }}
           onDragEnd={() => {
@@ -984,7 +1003,7 @@ const Canvas = () => {
             drawGridLines();
             // Mark canvas as having unsaved changes
             if (!hasUnsavedChanges) {
-              setHasUnsavedChanges(true);
+              scheduleAutoSave();
             }
 
             // Disable dragging after drag ends (as an extra safeguard)
