@@ -18,11 +18,15 @@ namespace server.Services
             _imagesService = imagesService;
         }
 
-        public async Task<List<CanvasListItem>> GetCanvasesForUserAsync(string uid)
+        public async Task<List<CanvasListItem>> GetCanvasesForUserAsync(string uid, int limit = 50)
         {
+            limit = Math.Clamp(limit, 1, 100);
+
             CollectionReference canvasesRef = _firestoreDb.Collection("canvases");
 
-            Query userCanvases = canvasesRef.WhereEqualTo("UserId", uid);
+            Query userCanvases = canvasesRef
+                .WhereEqualTo("UserId", uid)
+                .Limit(limit);
 
             QuerySnapshot snapshot = await userCanvases.GetSnapshotAsync();
 

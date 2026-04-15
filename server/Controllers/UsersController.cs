@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using server.Models;
 using server.Models.Requests;
 using server.Services;
@@ -18,6 +19,7 @@ namespace server.Controllers
         }
 
         [HttpPost("session")]
+        [EnableRateLimiting("login")]
         public async Task<IActionResult> CreateSessionForUser([FromBody] LoginRequest request)
         {
             //WE add the IP to the User

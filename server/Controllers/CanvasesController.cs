@@ -17,10 +17,10 @@ namespace server.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetCanvasesForUser()
+        public async Task<IActionResult> GetCanvasesForUser([FromQuery] int limit = 50)
         {
             string uid = GetUserIdOrUnauthorized();
-            List<CanvasListItem> canvasList = await _canvasesService.GetCanvasesForUserAsync(uid);
+            List<CanvasListItem> canvasList = await _canvasesService.GetCanvasesForUserAsync(uid, limit);
             return Ok(canvasList);
         }
 

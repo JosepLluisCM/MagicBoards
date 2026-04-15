@@ -6,11 +6,13 @@ namespace server.Utilities
     {
         private readonly RequestDelegate _next;
         private readonly FirebaseAdminService _firebaseAdminService;
+        private readonly ILogger<SessionAuthMiddleware> _logger;
 
-        public SessionAuthMiddleware(RequestDelegate next, FirebaseAdminService firebaseAdminService)
+        public SessionAuthMiddleware(RequestDelegate next, FirebaseAdminService firebaseAdminService, ILogger<SessionAuthMiddleware> logger)
         {
             _next = next;
             _firebaseAdminService = firebaseAdminService;
+            _logger = logger;
         }
 
         public async Task InvokeAsync(HttpContext context)
@@ -48,8 +50,7 @@ namespace server.Utilities
                 }
                 catch (Exception ex)
                 {
-                    // Token invalid or revoked
-                    Console.WriteLine($"Auth error: {ex.Message}");
+                    _logger.LogWarning("Session validation failed for {Path}: {Message}", context.Request.Path, ex.Message);
                 }
 
                 if (userUid != null)
