@@ -66,9 +66,7 @@ export async function deleteSession(): Promise<void> {
         "X-Logout-Flow": "true", // Add this header
       },
     });
-  } catch (error) {
+  } catch {
     // Even if logout fails, we don't want to throw an error
-    // API client already handles logging
-    console.info("Logout completed (client-side)");
   }
 }

@@ -3,6 +3,8 @@
 *.env.*
 !*.env.template
 !*.env.*.template
+!*.env.example
+!*.env.*.example
 .DS_Store
 .vscode/
 bin/

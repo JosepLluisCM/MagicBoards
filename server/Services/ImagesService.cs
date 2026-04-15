@@ -57,16 +57,29 @@ namespace server.Services
             }
         }
 
-        public async Task<(Stream ImageStream, string ContentType)> GetImageAsync(string imagePath, string uid)
+        private (string pathUserId, string pathCanvasId) ValidateAndParsePath(string imagePath, string uid)
         {
-            //WE CHECK THE CANVASID AND USERID FROM THE PATH, AND CHECK OWNERSHIP
             string[] parts = imagePath.Split('/');
+
+            if (parts.Length < 3 || parts.Any(p => p == ".." || p == "." || string.IsNullOrEmpty(p)))
+                throw new UnauthorizedOperationException("access this image");
+
             string pathUserId = parts[0];
             string pathCanvasId = parts[1];
 
+            if (pathUserId != uid)
+                throw new UnauthorizedOperationException("access this image");
+
+            return (pathUserId, pathCanvasId);
+        }
+
+        public async Task<(Stream ImageStream, string ContentType)> GetImageAsync(string imagePath, string uid)
+        {
+            var (_, pathCanvasId) = ValidateAndParsePath(imagePath, uid);
+
             bool isOwner = await _firestoreService.IsOwnerAsync(pathCanvasId, uid, "canvases");
 
-            if (pathUserId != uid || !isOwner)
+            if (!isOwner)
             {
                 throw new UnauthorizedOperationException("view this image");
             }
@@ -96,14 +109,11 @@ namespace server.Services
 
         public async Task<string> GetImagePresignedUrl(string imagePath, string uid)
         {
-            //WE CHECK THE CANVASID AND USERID FROM THE PATH, AND CHECK OWNERSHIP
-            string[] parts = imagePath.Split('/');
-            string pathUserId = parts[0];
-            string pathCanvasId = parts[1];
+            var (_, pathCanvasId) = ValidateAndParsePath(imagePath, uid);
 
             bool isOwner = await _firestoreService.IsOwnerAsync(pathCanvasId, uid, "canvases");
 
-            if (pathUserId != uid || !isOwner)
+            if (!isOwner)
             {
                 throw new UnauthorizedOperationException("view this image");
             }
@@ -131,16 +141,13 @@ namespace server.Services
 
         public async Task DeleteImageAsync(string imagePath, string uid)
         {
-            //WE CHECK THE CANVASID AND USERID FROM THE PATH, AND CHECK OWNERSHIP
-            string[] parts = imagePath.Split('/');
-            string pathUserId = parts[0];
-            string pathCanvasId = parts[1];
+            var (_, pathCanvasId) = ValidateAndParsePath(imagePath, uid);
 
             bool isOwner = await _firestoreService.IsOwnerAsync(pathCanvasId, uid, "canvases");
 
-            if (pathUserId != uid || !isOwner)
+            if (!isOwner)
             {
-                throw new UnauthorizedAccessException("You do not have permission to delete this Image.");
+                throw new UnauthorizedOperationException("delete this image");
             }
 
             DeleteObjectRequest deleteObjectRequest = new DeleteObjectRequest

@@ -26,12 +26,14 @@ namespace server.Services
                 throw new ValidationException("ID token is required");
             }
 
-            // Seems that this is not necessary as all the info comes from the client correctly
-            //var decodedToken = await FirebaseAuth.DefaultInstance.VerifyIdTokenAsync(request.IdToken);
-            //string uid = decodedToken.Uid;
+            var decodedToken = await FirebaseAuth.DefaultInstance.VerifyIdTokenAsync(request.IdToken);
+            string uid = decodedToken.Uid;
+
+            if (uid != request.Id)
+                throw new ValidationException("ID token does not match the provided user ID");
 
             // Check if user exists in Firestore
-            DocumentReference userRef = _firestoreDb.Collection("users").Document(request.Id);
+            DocumentReference userRef = _firestoreDb.Collection("users").Document(uid);
             DocumentSnapshot snapshot = await userRef.GetSnapshotAsync();
 
             if (snapshot.Exists)
@@ -47,7 +49,7 @@ namespace server.Services
             }
             else
             {
-                User newUser = User.CreateNew(request.Id, request.Email, request.Name, request.AvatarUrl, request.UserAgent, request.Ip);
+                User newUser = User.CreateNew(uid, request.Email, request.Name, request.AvatarUrl, request.UserAgent, request.Ip);
 
                 await userRef.SetAsync(newUser);
 

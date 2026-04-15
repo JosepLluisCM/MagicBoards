@@ -76,9 +76,7 @@ namespace server.Controllers
                 Secure = true,
                 SameSite = SameSiteMode.None,
                 Path = "/",
-                //DEBUG
-                //Expires = DateTime.UtcNow.AddMinutes(10),
-                Expires = DateTime.UtcNow.AddDays(SessionDurationDays),
+                Expires = DateTime.UtcNow.AddDays(-1),
             });
             return Ok(new { message = "Logged Out Succesfully" });
         }

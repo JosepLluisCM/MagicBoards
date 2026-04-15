@@ -101,7 +101,6 @@ const Canvas = () => {
 
     // Set a new timer
     debounceTimerRef.current = window.setTimeout(() => {
-      console.log("Applying data after debounce");
       forceApplyData();
       debounceTimerRef.current = null;
     }, 300); // Wait 300ms after last event
@@ -119,8 +118,6 @@ const Canvas = () => {
         y: stageRef.current.y(),
       },
     };
-
-    console.log("Updating canvas data:", currentData);
 
     // Only update the data property without touching elements
     setCanvas((prevCanvas) => {
@@ -148,7 +145,6 @@ const Canvas = () => {
 
     // Set a new timer
     debounceTimerRef.current = window.setTimeout(() => {
-      console.log("Updating canvas data after debounce");
       updateCanvasData();
       debounceTimerRef.current = null;
     }, 300); // Wait 300ms after last event
@@ -334,7 +330,6 @@ const Canvas = () => {
   // Add an effect to force apply the canvas data when it's available
   useEffect(() => {
     if (canvas?.data && !loading && stageRef.current) {
-      console.log("Canvas data available, forcing application:", canvas.data);
       // Small delay to ensure the stage is ready
       setTimeout(() => {
         forceApplyData();
@@ -342,10 +337,6 @@ const Canvas = () => {
     }
   }, [canvas, loading, stageRef.current]);
 
-  // Log scale changes to debug
-  useEffect(() => {
-    console.log("Scale changed:", scale);
-  }, [scale]);
   //#endregion EFFECTS
 
   //#region HANDLERS
@@ -370,7 +361,6 @@ const Canvas = () => {
       // Update local state
       setCanvas(updatedCanvas);
       setHasUnsavedChanges(false);
-      console.log("Canvas saved successfully");
     } catch (err) {
       console.error("Error saving canvas:", err);
       setError("Failed to save canvas");
@@ -393,8 +383,6 @@ const Canvas = () => {
 
       // Step 1: Upload the image to server and get the image key
       const imageId = await uploadImage(selectedFile, id);
-
-      console.log("Image uploaded successfully with ID:", imageId);
 
       // Step 2: Get the image from the server using the presigned URL
       const imageUrl = await getImage(imageId);
@@ -445,7 +433,6 @@ const Canvas = () => {
         try {
           await updateCanvas(updatedCanvas);
           setHasUnsavedChanges(false);
-          console.log("Canvas saved after image upload");
         } catch (err) {
           console.error("Error saving canvas after image upload:", err);
           setHasUnsavedChanges(true);
@@ -527,7 +514,6 @@ const Canvas = () => {
 
   // Handle element drag start
   const handleElementDragStart = () => {
-    console.log("Element drag start");
     isElementDraggingRef.current = true;
   };
 
@@ -535,14 +521,11 @@ const Canvas = () => {
   const handleDragEnd = (e: any, elementId: string) => {
     if (!canvas) return;
 
-    console.log("Element drag end");
     isElementDraggingRef.current = false;
 
     // Get the current node position
     const newX = e.target.x();
     const newY = e.target.y();
-
-    console.log(`Element ${elementId} moved to:`, { x: newX, y: newY });
 
     // Update the canvas state with the new element position
     setCanvas((prev) => {
@@ -616,7 +599,6 @@ const Canvas = () => {
       try {
         await updateCanvas(updatedCanvas);
         setHasUnsavedChanges(false);
-        console.log("Canvas saved after image deletion");
       } catch (err) {
         console.error("Error saving canvas after deletion:", err);
         // Keep hasUnsavedChanges true so user can retry save
@@ -652,7 +634,6 @@ const Canvas = () => {
     try {
       await updateCanvas(updatedCanvas);
       setHasUnsavedChanges(false);
-      console.log("Canvas saved after element deletion");
     } catch (err) {
       console.error("Error saving canvas after element deletion:", err);
     }
@@ -699,14 +680,6 @@ const Canvas = () => {
     // Reset scale on the node itself, as we've applied it to the width/height
     node.scaleX(1);
     node.scaleY(1);
-
-    console.log(`Element ${elementId} transformed:`, {
-      x: newX,
-      y: newY,
-      width: newWidth,
-      height: newHeight,
-      rotation: newRotation,
-    });
 
     // Update canvas with new element properties
     setCanvas((prev) => {

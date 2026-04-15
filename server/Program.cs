@@ -83,10 +83,12 @@ else
 
 builder.WebHost.ConfigureKestrel(serverOptions =>
 {
+    serverOptions.Limits.MaxRequestBodySize = 10 * 1024 * 1024; // 10 MB global limit
+
     // Configure HTTPS
     serverOptions.ConfigureHttpsDefaults(options =>
     {
-        options.SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | 
+        options.SslProtocols = System.Security.Authentication.SslProtocols.Tls12 |
                                System.Security.Authentication.SslProtocols.Tls13;
     });
 });

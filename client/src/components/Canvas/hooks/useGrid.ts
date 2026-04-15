@@ -70,10 +70,6 @@ const useGrid = ({
       const canvasX = Number(initialCanvasData.position.x || 0);
       const canvasY = Number(initialCanvasData.position.y || 0);
 
-      console.log(
-        `Setting initial canvas data: scale=${canvasScale}, x=${canvasX}, y=${canvasY}`
-      );
-
       setScale(canvasScale);
       setPosition({
         x: canvasX,
@@ -320,13 +316,8 @@ const useGrid = ({
     const canvasX = Number(initialCanvasData.position.x || 0);
     const canvasY = Number(initialCanvasData.position.y || 0);
 
-    console.log(
-      `Applying canvas data to stage: scale=${canvasScale}, x=${canvasX}, y=${canvasY}`
-    );
-
     // Stop here if we've already applied initial data
     if (initialDataAppliedRef.current) {
-      console.log("Initial data already applied, skipping");
       return;
     }
 
@@ -422,7 +413,6 @@ const useGrid = ({
   useEffect(() => {
     // Only draw grid if stage and layer are ready AND data has been applied
     if (stageRef.current && gridLayerRef.current && dataAppliedRef.current) {
-      console.log("Drawing grid after initialization");
       // Initial draw might need multiple attempts
       drawGridLines();
 
@@ -446,9 +436,6 @@ const useGrid = ({
     const canvasX = Number(initialCanvasData.position.x || 0);
     const canvasY = Number(initialCanvasData.position.y || 0);
 
-    console.log(
-      `Force applying canvas data: scale=${canvasScale}, x=${canvasX}, y=${canvasY}`
-    );
 
     stageRef.current.scale({ x: canvasScale, y: canvasScale });
     stageRef.current.position({ x: canvasX, y: canvasY });
