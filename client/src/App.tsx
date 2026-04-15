@@ -11,6 +11,7 @@ import Canvas from "./components/Canvas/Canvas";
 import CanvasSelection from "./components/CanvasSelection/CanvasSelection";
 import LoginPage from "./components/Login/LoginPage";
 import { LoadingSpinner } from "./components/ui/loading-spinner";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 // Smart redirect component based on auth state
 function ProtectedRedirect() {
@@ -34,6 +35,7 @@ function App() {
     <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
       <BrowserRouter>
         <AuthProvider>
+          <ErrorBoundary>
           <div className="min-h-screen w-full relative">
             <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
               <UserAvatar />
@@ -48,6 +50,7 @@ function App() {
               <Route path="*" element={<ProtectedRedirect />} />
             </Routes>
           </div>
+          </ErrorBoundary>
         </AuthProvider>
       </BrowserRouter>
       <Toaster />

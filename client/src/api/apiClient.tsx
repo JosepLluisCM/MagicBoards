@@ -33,7 +33,10 @@ apiClient.interceptors.response.use(
     const backendMessage = error.response?.data?.title;
     let type = ErrorType.UNKNOWN;
 
-    if (status === 401 || status === 403) type = ErrorType.AUTH;
+    if (status === 401 || status === 403) {
+      type = ErrorType.AUTH;
+      if (status === 401) window.dispatchEvent(new CustomEvent("auth:unauthorized"));
+    }
     else if (status === 400) type = ErrorType.VALIDATION;
     else if (status && status >= 500) type = ErrorType.SERVER;
     else if (error.code === "ECONNABORTED" || !error.response)

@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { toast } from "sonner";
 import {
   Stage,
   Layer,
@@ -23,6 +24,7 @@ import {
   CanvasElementType,
 } from "@/types/canvas";
 import useGrid from "./hooks/useGrid";
+import { useCanvasHistory } from "./hooks/useCanvasHistory";
 
 const Canvas = () => {
   const navigate = useNavigate();
@@ -33,6 +35,7 @@ const Canvas = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [loadedImages, setLoadedImages] = useState<
     Record<string, HTMLImageElement>
@@ -84,6 +87,9 @@ const Canvas = () => {
   } | null>(null);
   // Add a timer ref for debouncing
   const debounceTimerRef = useRef<number | null>(null);
+  const autoSaveTimerRef = useRef<number | null>(null);
+
+  const { pushSnapshot, undo, redo, canUndo, canRedo } = useCanvasHistory();
 
   // Add a ref to track if we're currently dragging an element
   const isElementDraggingRef = useRef(false);
@@ -280,31 +286,129 @@ const Canvas = () => {
     };
   }, [loadedImages]);
 
-  // Add keyboard event handler for delete key
+  // Auto-save: triggers 2s after last unsaved change
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Delete" && selectedId && canvas) {
-        const selectedElement = canvas.elements.find(
-          (el) => el.id === selectedId
-        );
+    if (!hasUnsavedChanges) {
+      if (autoSaveTimerRef.current !== null) window.clearTimeout(autoSaveTimerRef.current);
+      return;
+    }
+    autoSaveTimerRef.current = window.setTimeout(() => {
+      saveCanvas();
+    }, 2000);
+    return () => {
+      if (autoSaveTimerRef.current !== null) window.clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [hasUnsavedChanges]);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const isInputActive = () => {
+      const el = document.activeElement;
+      return el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement;
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Delete / Backspace — delete selected element
+      if ((e.key === "Delete" || e.key === "Backspace") && selectedId && canvas && !isInputActive()) {
+        const selectedElement = canvas.elements.find((el) => el.id === selectedId);
         if (selectedElement) {
-          if (selectedElement.type === CanvasElementType.Text) {
-            // For text elements, just remove from canvas
-            handleDeleteElement();
-          } else if (selectedElement.type === CanvasElementType.Image) {
-            // For images, use the delete image function
-            handleDeleteImage();
-          }
+          if (selectedElement.type === CanvasElementType.Text) handleDeleteElement();
+          else if (selectedElement.type === CanvasElementType.Image) handleDeleteImage();
         }
+        return;
+      }
+
+      // Escape — deselect
+      if (e.key === "Escape") {
+        setSelectedId(null);
+        return;
+      }
+
+      if (isInputActive()) return;
+
+      const ctrl = e.ctrlKey || e.metaKey;
+
+      // Ctrl+S — save immediately
+      if (ctrl && e.key === "s") {
+        e.preventDefault();
+        saveCanvas();
+        return;
+      }
+
+      // Ctrl+Z — undo
+      if (ctrl && !e.shiftKey && e.key === "z") {
+        e.preventDefault();
+        if (!canvas || !canUndo()) return;
+        const restored = undo(canvas.elements);
+        if (restored) {
+          setCanvas((prev) => prev ? { ...prev, elements: restored, updatedAt: new Date().toISOString() } : prev);
+          setHasUnsavedChanges(true);
+        }
+        return;
+      }
+
+      // Ctrl+Y / Ctrl+Shift+Z — redo
+      if (ctrl && (e.key === "y" || (e.shiftKey && e.key === "z"))) {
+        e.preventDefault();
+        if (!canvas || !canRedo()) return;
+        const restored = redo(canvas.elements);
+        if (restored) {
+          setCanvas((prev) => prev ? { ...prev, elements: restored, updatedAt: new Date().toISOString() } : prev);
+          setHasUnsavedChanges(true);
+        }
+        return;
+      }
+
+      // Ctrl+D — duplicate selected element
+      if (ctrl && e.key === "d") {
+        e.preventDefault();
+        if (!canvas || !selectedId) return;
+        const source = canvas.elements.find((el) => el.id === selectedId);
+        if (!source) return;
+        pushSnapshot(canvas.elements);
+        const duplicate: CanvasElement = {
+          ...source,
+          id: generateId(),
+          data: {
+            ...source.data,
+            position: {
+              ...source.data.position,
+              x: source.data.position.x + 20,
+              y: source.data.position.y + 20,
+            },
+          },
+        };
+        setCanvas((prev) => prev ? { ...prev, elements: [...prev.elements, duplicate], updatedAt: new Date().toISOString() } : prev);
+        setSelectedId(duplicate.id);
+        setHasUnsavedChanges(true);
+        return;
+      }
+
+      // Arrow keys — move selected element
+      if (selectedId && canvas && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        e.preventDefault();
+        const step = e.shiftKey ? 1 : 10;
+        const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
+        const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
+        setCanvas((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            elements: prev.elements.map((el) =>
+              el.id === selectedId
+                ? { ...el, data: { ...el.data, position: { ...el.data.position, x: el.data.position.x + dx, y: el.data.position.y + dy } } }
+                : el
+            ),
+            updatedAt: new Date().toISOString(),
+          };
+        });
+        setHasUnsavedChanges(true);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [selectedId, canvas]);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedId, canvas, canUndo, canRedo]);
 
   // Update transformer when selection changes
   useEffect(() => {
@@ -340,30 +444,26 @@ const Canvas = () => {
   //#endregion EFFECTS
 
   //#region HANDLERS
-  // Save canvas updates to API - only called when Save button is clicked
+  // Save canvas updates to API
   const saveCanvas = async () => {
     if (!canvas) return;
 
+    setIsSaving(true);
     try {
-      // Get current canvas position and scale for saving
       const currentViewData = getCanvasData();
-
-      // Update the canvas with current position and scale, preserving elements
       const updatedCanvas = {
         ...canvas,
         data: currentViewData,
         updatedAt: new Date().toISOString(),
       };
-
-      // Save to server
       await updateCanvas(updatedCanvas);
-
-      // Update local state
       setCanvas(updatedCanvas);
       setHasUnsavedChanges(false);
     } catch (err) {
       console.error("Error saving canvas:", err);
       setError("Failed to save canvas");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -521,6 +621,7 @@ const Canvas = () => {
   const handleDragEnd = (e: any, elementId: string) => {
     if (!canvas) return;
 
+    pushSnapshot(canvas.elements);
     isElementDraggingRef.current = false;
 
     // Get the current node position
@@ -562,86 +663,83 @@ const Canvas = () => {
     setHasUnsavedChanges(true);
   };
 
-  // Handle image deletion
+  // Handle image deletion — server call is immediate; no undo (re-upload would be too complex)
   const handleDeleteImage = async () => {
     if (!canvas || !selectedId) return;
 
-    // Find the selected element
     const selectedElement = canvas.elements.find((el) => el.id === selectedId);
-    if (!selectedElement || selectedElement.type !== CanvasElementType.Image)
-      return;
+    if (!selectedElement || selectedElement.type !== CanvasElementType.Image) return;
+
+    pushSnapshot(canvas.elements);
 
     try {
-      // Delete image from server
       await deleteImage(selectedElement.imageId);
 
-      // Remove image from loadedImages
       setLoadedImages((prev) => {
-        const newImages = { ...prev };
-        delete newImages[selectedElement.imageId];
-        return newImages;
+        const next = { ...prev };
+        delete next[selectedElement.imageId];
+        return next;
       });
 
-      // Remove element from canvas
       const updatedCanvas = {
         ...canvas,
         elements: canvas.elements.filter((el) => el.id !== selectedId),
         updatedAt: new Date().toISOString(),
       };
-
       setCanvas(updatedCanvas);
-
-      // Clear selection
       setSelectedId(null);
-      setHasUnsavedChanges(true);
+      setHasUnsavedChanges(false);
 
-      // Save canvas to server immediately
+      setIsSaving(true);
       try {
         await updateCanvas(updatedCanvas);
-        setHasUnsavedChanges(false);
-      } catch (err) {
-        console.error("Error saving canvas after deletion:", err);
-        // Keep hasUnsavedChanges true so user can retry save
+      } catch {
+        setHasUnsavedChanges(true);
+      } finally {
+        setIsSaving(false);
       }
+
+      toast.success("Image deleted");
     } catch (err) {
       console.error("Error deleting image:", err);
-      setError("Failed to delete image");
+      toast.error("Failed to delete image");
     }
   };
 
-  // Handle text deletion
-  const handleDeleteElement = async () => {
+  // Handle element deletion — optimistic with undo in toast
+  const handleDeleteElement = () => {
     if (!canvas || !selectedId) return;
 
-    // Find the selected element
     const selectedElement = canvas.elements.find((el) => el.id === selectedId);
     if (!selectedElement) return;
 
-    // Remove element from canvas
-    const updatedCanvas = {
-      ...canvas,
-      elements: canvas.elements.filter((el) => el.id !== selectedId),
-      updatedAt: new Date().toISOString(),
-    };
+    pushSnapshot(canvas.elements);
 
-    setCanvas(updatedCanvas);
-
-    // Clear selection
+    const elementsAfterDelete = canvas.elements.filter((el) => el.id !== selectedId);
+    setCanvas((prev) => prev ? { ...prev, elements: elementsAfterDelete, updatedAt: new Date().toISOString() } : prev);
     setSelectedId(null);
     setHasUnsavedChanges(true);
 
-    // Save canvas to server immediately
-    try {
-      await updateCanvas(updatedCanvas);
-      setHasUnsavedChanges(false);
-    } catch (err) {
-      console.error("Error saving canvas after element deletion:", err);
-    }
+    toast("Element deleted", {
+      duration: 5000,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          setCanvas((prev) => {
+            if (!prev) return prev;
+            return { ...prev, elements: canvas.elements, updatedAt: new Date().toISOString() };
+          });
+          setHasUnsavedChanges(true);
+        },
+      },
+    });
   };
 
   // Handle element transform end (resize/rotate)
   const handleTransformEnd = (e: any, elementId: string) => {
     if (!canvas) return;
+
+    pushSnapshot(canvas.elements);
 
     // Get the node to access its new properties
     const node = e.target;
@@ -798,9 +896,9 @@ const Canvas = () => {
           onClick={saveCanvas}
           size="sm"
           variant={hasUnsavedChanges ? "destructive" : "default"}
-          disabled={!hasUnsavedChanges}
+          disabled={isSaving || !hasUnsavedChanges}
         >
-          {hasUnsavedChanges ? "Save*" : "Save"}
+          {isSaving ? "Saving…" : hasUnsavedChanges ? "Save*" : "Saved ✓"}
         </Button>
         <input
           type="file"
