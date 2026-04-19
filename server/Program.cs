@@ -2,9 +2,11 @@ using Amazon;
 using DotNetEnv;
 using Microsoft.AspNetCore.RateLimiting;
 using Serilog;
+using Serilog.Context;
 using server.Services;
 using server.Utilities;
 using Server.Urilities;
+using System.Diagnostics;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 
@@ -26,7 +28,8 @@ Env.Load();
 // Validate required credentials at startup
 var firestoreCredPath = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS");
 if (string.IsNullOrEmpty(firestoreCredPath) || !File.Exists(firestoreCredPath))
-    Log.Warning("GOOGLE_APPLICATION_CREDENTIALS is not properly configured");
+    throw new InvalidOperationException(
+        $"GOOGLE_APPLICATION_CREDENTIALS is missing or the file does not exist: '{firestoreCredPath ?? "(not set)"}'");
 
 var r2CredPath = Environment.GetEnvironmentVariable("R2_CREDENTIALS_PATH");
 if (string.IsNullOrEmpty(r2CredPath) || !File.Exists(r2CredPath))
@@ -117,6 +120,16 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("CorsPolicy");
 app.UseHttpsRedirection();
+
+// §33 Correlation IDs — push TraceId into every log entry for this request
+app.Use(async (context, next) =>
+{
+    var traceId = Activity.Current?.TraceId.ToString() ?? context.TraceIdentifier;
+    using (LogContext.PushProperty("TraceId", traceId))
+    {
+        await next();
+    }
+});
 
 // §16 CSRF — reject mutating requests whose Origin doesn't match the CORS allow-list.
 // Same-origin requests don't send an Origin header and are never a CSRF risk.

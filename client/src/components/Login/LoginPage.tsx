@@ -32,7 +32,7 @@ export default function LoginPage() {
     try {
       await login();
       //toast.success("Logged in successfully!");
-    } catch (error) {
+    } catch {
       toast.error("Login failed. Please try again.");
       //console.error("Login error:", error);
     } finally {

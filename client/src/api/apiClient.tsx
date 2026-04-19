@@ -17,7 +17,7 @@ export interface ApiError {
   status?: number;
   message: string;
   originalError: Error | AxiosError;
-  data?: any;
+  data?: unknown;
 }
 
 const apiClient = axios.create({

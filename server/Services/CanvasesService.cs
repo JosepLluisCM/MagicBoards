@@ -117,8 +117,14 @@ namespace server.Services
                 throw new UnauthorizedOperationException("update this canvas");
             }
 
+            // §15: Clean up images that were uploaded but are no longer (or never were) referenced
+            var referencedPaths = request.Elements
+                .Where(e => e.Type == CanvasElementType.Image && !string.IsNullOrEmpty(e.ImageId))
+                .Select(e => e.ImageId)
+                .ToList();
+            await _imagesService.CleanOrphanedImagesAsync(canvasId, referencedPaths);
+
             Canvas updatedCanvas = Canvas.Update(canvas, request.Data, request.Elements);
-            
             await canvasRef.SetAsync(updatedCanvas);
             return updatedCanvas;
         }

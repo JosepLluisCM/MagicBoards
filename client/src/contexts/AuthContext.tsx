@@ -7,7 +7,7 @@ import {
   ReactNode,
   useCallback,
 } from "react";
-import { useNavigate } from "react-router-dom";
+
 import { signInWithPopup, signOut } from "firebase/auth";
 import { auth, provider } from "./FireBase";
 import {
@@ -31,7 +31,6 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -101,15 +100,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       toast.success(`Welcome ${serverUser.name?.split(" ")[0] ?? "back"}! 🎉`);
       // Navigate to canvas selection after successful login
       //navigate("/canvas-selection");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Login failed:", error);
 
       // Check for specific Firebase auth popup errors first
-      if (error.code === "auth/user-token-expired") {
+      const firebaseError = error as { code?: string };
+      if (firebaseError.code === "auth/user-token-expired") {
         toast.error("Please, wait a few seconds and try again.");
-      } else if (error.code === "auth/popup-closed-by-user") {
+      } else if (firebaseError.code === "auth/popup-closed-by-user") {
         toast.info("Login was canceled. Please try again when ready.");
-      } else if (error.code === "auth/cancelled-popup-request") {
+      } else if (firebaseError.code === "auth/cancelled-popup-request") {
         toast.info("Login process was interrupted. Please try again.");
       } else {
         // Fall back to your existing API error handling for other errors

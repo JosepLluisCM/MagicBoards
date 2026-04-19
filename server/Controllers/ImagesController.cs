@@ -47,17 +47,7 @@ namespace server.Controllers
             return File(imageStream, contentType);
         }
 
-        [Obsolete("This endpoint is temporarily disabled but preserved for future use")]
-        [HttpGet("presigned/{*imagePath}")]
-        public async Task<IActionResult> GetImagePresignedUrl(string imagePath)
-        {
-            string formattedPath = System.Net.WebUtility.UrlDecode(imagePath);
-            string uid = GetUserIdOrUnauthorized();
-            string presignedUrl = await _imagesService.GetImagePresignedUrl(formattedPath, uid);
-            return Ok(new { url = presignedUrl });
-        }
-
-        [HttpDelete("{*imagePath}")]
+[HttpDelete("{*imagePath}")]
         public async Task<IActionResult> DeleteImage(string imagePath)
         {
             string formattedPath = System.Net.WebUtility.UrlDecode(imagePath);

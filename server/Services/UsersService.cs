@@ -11,12 +11,14 @@ namespace server.Services
         private readonly FirestoreService _firestoreService;
         private readonly FirebaseAdminService _firebaseAdminService;
         private readonly FirestoreDb _firestoreDb;
+        private readonly ILogger<UsersService> _logger;
 
-        public UsersService(FirestoreService firestoreService, FirebaseAdminService firebaseAdminService)
+        public UsersService(FirestoreService firestoreService, FirebaseAdminService firebaseAdminService, ILogger<UsersService> logger)
         {
             _firebaseAdminService = firebaseAdminService;
             _firestoreService = firestoreService;
             _firestoreDb = _firestoreService.GetFirestoreDb();
+            _logger = logger;
         }
 
         public async Task<User> GetOrCreateUserAsync(LoginRequest request)
@@ -26,11 +28,24 @@ namespace server.Services
                 throw new ValidationException("ID token is required");
             }
 
-            var decodedToken = await FirebaseAuth.DefaultInstance.VerifyIdTokenAsync(request.IdToken);
+            FirebaseToken decodedToken;
+            try
+            {
+                decodedToken = await FirebaseAuth.DefaultInstance.VerifyIdTokenAsync(request.IdToken);
+            }
+            catch (FirebaseAuthException ex)
+            {
+                _logger.LogWarning("Login failed — invalid ID token for claimed uid={Uid}: {Reason}", request.Id, ex.Message);
+                throw new ValidationException("Invalid ID token");
+            }
+
             string uid = decodedToken.Uid;
 
             if (uid != request.Id)
+            {
+                _logger.LogWarning("Login failed — token uid={TokenUid} does not match claimed uid={ClaimedUid}", uid, request.Id);
                 throw new ValidationException("ID token does not match the provided user ID");
+            }
 
             // Check if user exists in Firestore
             DocumentReference userRef = _firestoreDb.Collection("users").Document(uid);
@@ -38,21 +53,17 @@ namespace server.Services
 
             if (snapshot.Exists)
             {
-
                 User existingUser = snapshot.ConvertTo<User>();
-
                 User updatedUser = User.Update(existingUser, request.Email, request.Name, request.AvatarUrl, request.UserAgent, request.Ip);
-
                 await userRef.SetAsync(updatedUser);
-
+                _logger.LogInformation("Login: existing user {Uid} authenticated from {Ip}", uid, request.Ip);
                 return updatedUser;
             }
             else
             {
                 User newUser = User.CreateNew(uid, request.Email, request.Name, request.AvatarUrl, request.UserAgent, request.Ip);
-
                 await userRef.SetAsync(newUser);
-
+                _logger.LogInformation("Login: new user {Uid} created from {Ip}", uid, request.Ip);
                 return newUser;
             }
         }
@@ -78,25 +89,6 @@ namespace server.Services
             return sessionCookie;
         }
 
-        //store session in db atm paused
-        //public async Task<UserSession> CreateUserSessionAsync(LoginRequest request, User user, int duration)
-        //{
-        //    DocumentReference addedDocRef = _firestoreDb.Collection("sessions").Document();
-
-        //    // Create a new session record
-        //    UserSession userSession = UserSession.CreateNew(
-        //        user.Uid,
-        //        addedDocRef.Id, // Generate a session ID
-        //        DateTime.UtcNow,
-        //        DateTime.UtcNow.AddDays(duration),
-        //        request.Ip, 
-        //        request.UserAgent
-        //    );
-
-        //    await addedDocRef.SetAsync(userSession);
-
-        //    return userSession;
-        //}
 
         public async Task<User?> GetUserFromCookieAsync(string sessionCookie)
         {
@@ -144,33 +136,14 @@ namespace server.Services
                 if (string.IsNullOrEmpty(uid)) throw new UnauthorizedOperationException("revoke session");
 
                 await FirebaseAuth.DefaultInstance.RevokeRefreshTokensAsync(uid);
+                _logger.LogInformation("Logout: session revoked for user {Uid}", uid);
                 await Task.Delay(2000);
             }
-            catch
+            catch (Exception ex)
             {
-                // Token might already be invalid, continue silently
+                _logger.LogWarning("Logout: failed to revoke session — {Reason}", ex.Message);
             }
         }
 
-        //public async Task<string?> CheckCookieAsync(string sessionCookie)
-        //{
-        //    if (string.IsNullOrEmpty(sessionCookie))
-        //    {
-        //        throw new ArgumentException("Session cookie is required");
-        //    }
-
-        //    try
-        //    {
-        //        var decodedToken = await FirebaseAuth.DefaultInstance
-        //            .VerifySessionCookieAsync(sessionCookie, checkRevoked: true);
-
-        //        return decodedToken.Uid;
-        //    }
-        //    catch (FirebaseAuthException)
-        //    {
-        //        // Invalid or expired session cookie
-        //        return null;
-        //    }
-        //}
     }
 }

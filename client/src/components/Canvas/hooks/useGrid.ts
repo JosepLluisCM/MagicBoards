@@ -269,7 +269,7 @@ const useGrid = ({
     }
 
     // Calculate new scale with limits
-    let newScale =
+    const newScale =
       direction > 0
         ? validateZoomScale(oldScale * scaleStep)
         : validateZoomScale(oldScale / scaleStep);
