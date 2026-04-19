@@ -1,12 +1,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardFooter,
-} from "@/components/ui/card";
-import { X } from "lucide-react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { LayoutTemplate, X } from "lucide-react";
 import { canvasListItem } from "@/types/CanvasListItem";
 import { formatDate } from "@/utils/timeUtils";
 
@@ -23,37 +18,43 @@ const CanvasCard: React.FC<CanvasCardProps> = ({
   onDelete,
   isSubmitting,
 }) => {
-  const { id, name, createdAt, updatedAt, userId } = canvas;
+  const { id, name, createdAt, updatedAt } = canvas;
 
   return (
-    <Card key={id} className="shadow-sm overflow-hidden">
-      <CardHeader className="pb-2">
-        <div className="flex justify-between items-center">
-          <h3 className="text-lg font-semibold">{name}</h3>
+    <Card
+      className="group cursor-pointer overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/10"
+      onClick={() => onOpen(id)}
+    >
+      {/* Canvas preview */}
+      <div className="flex h-28 items-center justify-center bg-gradient-to-br from-primary/20 via-primary/8 to-transparent">
+        <LayoutTemplate className="h-9 w-9 text-primary/35 transition-colors duration-200 group-hover:text-primary/55" />
+      </div>
+
+      <CardHeader className="pb-1 pt-3">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="truncate text-sm font-semibold leading-snug">{name}</h3>
           <Button
             variant="ghost"
             size="icon"
-            className="text-red-500 hover:text-red-700 hover:bg-red-100 h-8 w-8"
-            onClick={(e) => onDelete(id, e)}
+            className="-mt-0.5 h-6 w-6 shrink-0 opacity-0 transition-all duration-200 hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(id, e);
+            }}
             disabled={isSubmitting}
             aria-label="Delete Canvas"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3 w-3" />
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-2 text-sm text-muted-foreground">
-          <p>User: {userId}</p>
-          <p>Created: {formatDate(createdAt)}</p>
-          <p>Updated: {formatDate(updatedAt)}</p>
+
+      <CardContent className="pb-4">
+        <div className="space-y-0.5 text-xs text-muted-foreground">
+          <p>Updated {formatDate(updatedAt)}</p>
+          <p className="opacity-60">Created {formatDate(createdAt)}</p>
         </div>
       </CardContent>
-      <CardFooter>
-        <Button onClick={() => onOpen(id)} className="w-full">
-          Open Canvas
-        </Button>
-      </CardFooter>
     </Card>
   );
 };

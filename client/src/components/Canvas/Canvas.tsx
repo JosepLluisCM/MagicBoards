@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
+import { useTheme } from "@/components/theme-provider";
 import { toast } from "sonner";
 import { Stage, Layer } from "react-konva";
 import Konva from "konva";
@@ -18,12 +19,16 @@ import {
 import useGrid from "./hooks/useGrid";
 import { useCanvasHistory } from "./hooks/useCanvasHistory";
 import { CanvasToolbar } from "./CanvasToolbar";
-import { CanvasZoomControls } from "./CanvasZoomControls";
 import { CanvasElementLayer } from "./CanvasElementLayer";
 
 const Canvas = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const { theme } = useTheme();
+  const gridColor = useMemo(() => {
+    const isDark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    return isDark ? "rgba(255,255,255,1)" : "rgba(0,0,0,1)";
+  }, [theme]);
 
   //#region STATE
   const [canvas, setCanvas] = useState<CanvasType | null>(null);
@@ -44,17 +49,15 @@ const Canvas = () => {
     stageRef,
     gridLayerRef,
     scale,
-    zoomIn,
-    zoomOut,
     resetView,
     handleWheel,
     getCanvasData,
     drawGridLines,
     forceApplyData,
   } = useGrid({
-    stepSize: 50,
-    gridColor: "rgba(255, 255, 255, 0.2)",
-    gridOpacity: 0.2,
+    stepSize: 100,
+    gridColor,
+    gridOpacity: 0.08,
     showBorder: false,
     minScale: 0.1,
     maxScale: 5,
@@ -604,13 +607,8 @@ const Canvas = () => {
         textInputRef={textInputRef}
         onFileChange={handleFileChange}
         onTextInputKeyDown={handleTextInputKeyDown}
-      />
-
-      <CanvasZoomControls
-        onZoomIn={zoomIn}
-        onZoomOut={zoomOut}
-        onResetView={resetView}
         scale={scale}
+        onResetView={resetView}
       />
 
       <Stage

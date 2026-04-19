@@ -1,5 +1,17 @@
 import React from "react";
 import { Button } from "../ui/button";
+import { LoadingSpinner } from "../ui/loading-spinner";
+import { cn } from "@/lib/utils";
+import {
+  ArrowLeft,
+  BringToFront,
+  Check,
+  ImagePlus,
+  Save,
+  SendToBack,
+  Trash2,
+  Type,
+} from "lucide-react";
 
 interface CanvasToolbarProps {
   onBack: () => void;
@@ -20,7 +32,11 @@ interface CanvasToolbarProps {
   textInputRef: React.RefObject<HTMLInputElement>;
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onTextInputKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  scale: number | null;
+  onResetView: () => void;
 }
+
+const Divider = () => <div className="mx-1 h-5 w-px shrink-0 bg-border" />;
 
 export function CanvasToolbar({
   onBack,
@@ -41,51 +57,133 @@ export function CanvasToolbar({
   textInputRef,
   onFileChange,
   onTextInputKeyDown,
+  scale,
+  onResetView,
 }: CanvasToolbarProps) {
   return (
-    <div className="absolute top-4 left-4 flex gap-2 z-10">
-      <Button onClick={onBack} size="sm" variant="default">
-        Back to Selection
-      </Button>
-      <Button
-        onClick={onUploadClick}
-        size="sm"
-        variant="default"
-        disabled={isUploading}
-      >
-        {isUploading ? "Uploading..." : "Upload Image"}
-      </Button>
-      <Button onClick={onAddText} size="sm" variant="default">
-        Add Text
-      </Button>
-      {isElementSelected && (
-        <>
-          <Button onClick={onBringToFront} size="sm" variant="outline">
-            Bring to Front
-          </Button>
-          <Button onClick={onSendToBack} size="sm" variant="outline">
-            Send to Back
-          </Button>
-        </>
-      )}
-      {isImageSelected && (
-        <Button onClick={onDeleteImage} size="sm" variant="destructive">
-          Delete Image
+    <div className="absolute bottom-6 left-1/2 z-10 -translate-x-1/2 select-none">
+      <div className="flex items-center gap-0.5 rounded-xl border border-border bg-card/95 px-1.5 py-1.5 shadow-2xl shadow-black/50 backdrop-blur-md">
+        {/* Back */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onBack}
+          className="h-8 gap-1.5 rounded-lg px-3 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back
         </Button>
-      )}
-      {isTextSelected && (
-        <Button onClick={onDeleteElement} size="sm" variant="destructive">
-          Delete Text
+
+        <Divider />
+
+        {/* Upload Image */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onUploadClick}
+          disabled={isUploading}
+          className="h-8 gap-1.5 rounded-lg px-3 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <ImagePlus className="h-3.5 w-3.5" />
+          {isUploading ? "Uploading…" : "Image"}
         </Button>
-      )}
-      <Button
-        onClick={onSave}
-        size="sm"
-        variant={hasUnsavedChanges ? "destructive" : "default"}
-        disabled={isSaving || !hasUnsavedChanges}
-      >
-        {isSaving ? "Saving…" : hasUnsavedChanges ? "Save*" : "Saved ✓"}
-      </Button>
+
+        {/* Add Text */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onAddText}
+          className="h-8 gap-1.5 rounded-lg px-3 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <Type className="h-3.5 w-3.5" />
+          Text
+        </Button>
+
+        {/* Layering — only when an element is selected */}
+        {isElementSelected && (
+          <>
+            <Divider />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onBringToFront}
+              className="h-8 gap-1.5 rounded-lg px-3 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <BringToFront className="h-3.5 w-3.5" />
+              Front
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onSendToBack}
+              className="h-8 gap-1.5 rounded-lg px-3 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <SendToBack className="h-3.5 w-3.5" />
+              Back
+            </Button>
+          </>
+        )}
+
+        {/* Delete — only when image or text is selected */}
+        {(isImageSelected || isTextSelected) && (
+          <>
+            <Divider />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={isImageSelected ? onDeleteImage : onDeleteElement}
+              className="h-8 gap-1.5 rounded-lg px-3 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
+            </Button>
+          </>
+        )}
+
+        <Divider />
+
+        {/* Save */}
+        <Button
+          size="sm"
+          variant={hasUnsavedChanges ? "default" : "ghost"}
+          onClick={onSave}
+          disabled={isSaving || !hasUnsavedChanges}
+          className={cn(
+            "h-8 gap-1.5 rounded-lg px-3 text-xs",
+            !hasUnsavedChanges && "text-muted-foreground",
+          )}
+        >
+          {isSaving ? (
+            <>
+              <LoadingSpinner className="h-3.5 w-3.5" />
+              Saving…
+            </>
+          ) : hasUnsavedChanges ? (
+            <>
+              <Save className="h-3.5 w-3.5" />
+              Save
+            </>
+          ) : (
+            <>
+              <Check className="h-3.5 w-3.5" />
+              Saved
+            </>
+          )}
+        </Button>
+
+        <Divider />
+
+        {/* Zoom counter — click to reset */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onResetView}
+          title="Click to reset zoom"
+          className="h-8 min-w-[3rem] rounded-lg px-3 text-xs tabular-nums text-muted-foreground hover:text-foreground"
+        >
+          {scale !== null ? Math.round(scale * 100) : 100}%
+        </Button>
+      </div>
 
       {/* Hidden inputs */}
       <input

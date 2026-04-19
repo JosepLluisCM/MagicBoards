@@ -37,9 +37,12 @@ function App() {
         <AuthProvider>
           <ErrorBoundary>
           <div className="min-h-screen w-full relative">
-            <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-              <UserAvatar />
-              <ModeToggle />
+            <div className="absolute top-4 right-4 z-10">
+              <div className="flex items-center gap-0.5 rounded-xl border border-border bg-card/95 px-1.5 py-1.5 shadow-xl shadow-black/20 backdrop-blur-md">
+                <UserAvatar />
+                <div className="mx-1 h-5 w-px shrink-0 bg-border" />
+                <ModeToggle />
+              </div>
             </div>
             <Routes>
               <Route path="/" element={<ProtectedRedirect />} />
