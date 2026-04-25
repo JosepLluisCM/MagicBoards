@@ -30,6 +30,20 @@ function ProtectedRedirect() {
   );
 }
 
+function TopBar() {
+  const { isAuthenticated, isLoading } = useAuth();
+  const showAvatar = !isLoading && isAuthenticated;
+  return (
+    <div className="absolute top-4 right-4 z-10">
+      <div className="flex items-center gap-0.5 rounded-xl border border-border bg-card/95 px-1.5 py-1.5 shadow-xl shadow-black/20 backdrop-blur-md">
+        <UserAvatar />
+        {showAvatar && <div className="mx-1 h-5 w-px shrink-0 bg-border" />}
+        <ModeToggle />
+      </div>
+    </div>
+  );
+}
+
 function App() {
   return (
     <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
@@ -37,13 +51,7 @@ function App() {
         <AuthProvider>
           <ErrorBoundary>
           <div className="min-h-screen w-full relative">
-            <div className="absolute top-4 right-4 z-10">
-              <div className="flex items-center gap-0.5 rounded-xl border border-border bg-card/95 px-1.5 py-1.5 shadow-xl shadow-black/20 backdrop-blur-md">
-                <UserAvatar />
-                <div className="mx-1 h-5 w-px shrink-0 bg-border" />
-                <ModeToggle />
-              </div>
-            </div>
+            <TopBar />
             <Routes>
               <Route path="/" element={<ProtectedRedirect />} />
               <Route path="/login" element={<LoginPage />} />

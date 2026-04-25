@@ -196,16 +196,8 @@ export function CanvasToolbar({
       <input
         type="text"
         ref={textInputRef}
-        style={{
-          display: "none",
-          position: "absolute",
-          top: "60px",
-          left: "10px",
-          padding: "8px",
-          border: "1px solid #ccc",
-          borderRadius: "4px",
-          zIndex: 1000,
-        }}
+        style={{ display: "none" }}
+        className="fixed top-[-120%] left-1/2 z-50 min-w-[360px] -translate-x-1/2 rounded-lg border border-foreground/40 bg-transparent px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-blue-500/50"
         placeholder="Enter text and press Enter"
         onKeyDown={onTextInputKeyDown}
       />

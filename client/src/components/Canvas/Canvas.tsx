@@ -21,6 +21,14 @@ import { useCanvasHistory } from "./hooks/useCanvasHistory";
 import { CanvasToolbar } from "./CanvasToolbar";
 import { CanvasElementLayer } from "./CanvasElementLayer";
 
+function measureTextWidth(text: string, fontSize: number, fontFamily = "Arial"): number {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return text.length * fontSize * 0.6;
+  ctx.font = `${fontSize}px ${fontFamily}`;
+  return ctx.measureText(text).width;
+}
+
 const Canvas = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -50,6 +58,7 @@ const Canvas = () => {
     gridLayerRef,
     scale,
     resetView,
+    setView,
     handleWheel,
     getCanvasData,
     drawGridLines,
@@ -75,12 +84,26 @@ const Canvas = () => {
   const isDirtyRef = useRef(false);
   const isElementDraggingRef = useRef(false);
   const isStagePanningRef = useRef(false);
+  const canvasRef = useRef<CanvasType | null>(null);
+  const initialViewAppliedRef = useRef(false);
+
+  const markAsSaved = () => {
+    setHasUnsavedChanges(false);
+    isDirtyRef.current = false;
+    if (autoSaveTimerRef.current !== null) {
+      window.clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    canvasRef.current = canvas;
+  }, [canvas]);
 
   const { pushSnapshot, undo, redo, canUndo, canRedo } = useCanvasHistory();
 
   const MIN_ELEMENT_SIZE = 20;
-  const MAX_ELEMENT_SIZE = 2000;
-  const MAX_TEXT_WIDTH = 1000;
+  const MAX_ELEMENT_SIZE = 10000;
 
   //#region HELPERS
   const updateCanvasData = async () => {
@@ -318,9 +341,10 @@ const Canvas = () => {
     }
   }, [selectedId]);
 
-  // Restore stage position/scale from saved canvas data
+  // Restore stage position/scale once on initial load
   useEffect(() => {
-    if (canvas?.data && !loading && stageRef.current) {
+    if (canvas?.data && !loading && stageRef.current && !initialViewAppliedRef.current) {
+      initialViewAppliedRef.current = true;
       setTimeout(() => forceApplyData(), 0);
     }
   }, [canvas, loading, stageRef.current]);
@@ -328,17 +352,17 @@ const Canvas = () => {
 
   //#region HANDLERS
   const saveCanvas = async () => {
-    if (!canvas) return;
+    const currentCanvas = canvasRef.current;
+    if (!currentCanvas) return;
     if (autoSaveTimerRef.current !== null) {
       window.clearTimeout(autoSaveTimerRef.current);
       autoSaveTimerRef.current = null;
     }
     setIsSaving(true);
     try {
-      const updatedCanvas = { ...canvas, data: getCanvasData(), updatedAt: new Date().toISOString() };
+      const updatedCanvas = { ...currentCanvas, data: getCanvasData(), updatedAt: new Date().toISOString() };
       await updateCanvas(updatedCanvas);
-      setHasUnsavedChanges(false);
-      isDirtyRef.current = false;
+      markAsSaved();
     } catch (err) {
       console.error("Error saving canvas:", err);
       setError("Failed to save canvas");
@@ -362,12 +386,22 @@ const Canvas = () => {
       img.onload = async () => {
         setLoadedImages((prev) => ({ ...prev, [imageId]: img }));
         const elementId = generateId();
+        const stage = stageRef.current;
+        const stageScale = stage?.scaleX() ?? 1;
+        const stageX = stage?.x() ?? 0;
+        const stageY = stage?.y() ?? 0;
+        const centerCanvasX = (dimensions.width / 2 - stageX) / stageScale;
+        const centerCanvasY = (dimensions.height / 2 - stageY) / stageScale;
         const newElement: CanvasElement = {
           id: elementId,
           type: CanvasElementType.Image,
           data: {
-            position: { x: 300, y: 100, zIndex: canvas.elements.length + 1 },
-            size: { width: 200, height: 200 },
+            position: {
+              x: centerCanvasX - img.naturalWidth / 2,
+              y: centerCanvasY - img.naturalHeight / 2,
+              zIndex: canvas.elements.length + 1,
+            },
+            size: { width: img.naturalWidth, height: img.naturalHeight },
             rotation: 0,
           },
           content: "",
@@ -377,7 +411,7 @@ const Canvas = () => {
         setCanvas(updatedCanvas);
         try {
           await updateCanvas(updatedCanvas);
-          setHasUnsavedChanges(false);
+          markAsSaved();
         } catch {
           scheduleAutoSave();
         }
@@ -401,21 +435,35 @@ const Canvas = () => {
   };
 
   const handleTextInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!canvas || !textInputRef.current) return;
+    if (!canvas || !textInputRef.current || !stageRef.current) return;
     if (e.key === "Enter" && textInputRef.current.value.trim()) {
       const text = textInputRef.current.value.trim();
       const elementId = generateId();
-      const fontSize = 20;
+      const fontSize = 24;
+      const lineHeight = 1.2;
+      const measuredWidth = Math.ceil(measureTextWidth(text, fontSize)) + 2;
+      const height = Math.ceil(fontSize * lineHeight);
+
+      const stage = stageRef.current;
+      const stageScale = stage.scaleX();
+      const centerCanvasX = (dimensions.width / 2 - stage.x()) / stageScale;
+      const centerCanvasY = (dimensions.height / 2 - stage.y()) / stageScale;
+
       const newElement: CanvasElement = {
         id: elementId,
         type: CanvasElementType.Text,
         data: {
-          position: { x: 300, y: 200, zIndex: 0 },
-          size: { width: Math.max(50, text.length * fontSize * 1.1), height: Math.max(50, fontSize * 1.5) },
+          position: {
+            x: centerCanvasX - measuredWidth / 2,
+            y: centerCanvasY - height / 2,
+            zIndex: 0,
+          },
+          size: { width: measuredWidth, height },
           rotation: 0,
         },
         content: text,
         imageId: "",
+        fontSize,
       };
       setCanvas((prev) => prev ? { ...prev, elements: [...prev.elements, newElement], updatedAt: new Date().toISOString() } : prev);
       textInputRef.current.value = "";
@@ -460,7 +508,7 @@ const Canvas = () => {
       const updatedCanvas = { ...canvas, elements: canvas.elements.filter((el) => el.id !== selectedId), updatedAt: new Date().toISOString() };
       setCanvas(updatedCanvas);
       setSelectedId(null);
-      setHasUnsavedChanges(false);
+      markAsSaved();
       setIsSaving(true);
       try {
         await updateCanvas(updatedCanvas);
@@ -532,31 +580,104 @@ const Canvas = () => {
     const node = e.target;
     const element = canvas.elements.find((el) => el.id === elementId);
     if (!element) return;
+
     const scaleX = node.scaleX();
-    const scaleY = node.scaleY();
-    let newWidth: number, newHeight: number;
+
     if (element.type === CanvasElementType.Text) {
-      newWidth = Math.min(MAX_TEXT_WIDTH, Math.max(MIN_ELEMENT_SIZE, element.data.size.width * scaleX));
-      newHeight = Math.max(MIN_ELEMENT_SIZE, element.data.size.height * scaleY);
-    } else {
-      newWidth = Math.min(MAX_ELEMENT_SIZE, Math.max(MIN_ELEMENT_SIZE, element.data.size.width * scaleX));
-      newHeight = Math.min(MAX_ELEMENT_SIZE, Math.max(MIN_ELEMENT_SIZE, element.data.size.height * scaleY));
+      const currentFontSize = element.fontSize ?? 24;
+      const requestedFontSize = currentFontSize * scaleX;
+      const newFontSize = Math.max(8, Math.min(400, requestedFontSize));
+      const effectiveScale = newFontSize / currentFontSize;
+      const newWidth = element.data.size.width * effectiveScale;
+      const newHeight = element.data.size.height * effectiveScale;
+      const newX = node.x();
+      const newY = node.y();
+      const newRotation = node.rotation();
+
+      node.setAttrs({ scaleX: 1, scaleY: 1, width: newWidth, height: newHeight, fontSize: newFontSize, x: newX, y: newY, rotation: newRotation });
+
+      setCanvas((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          elements: prev.elements.map((el) =>
+            el.id === elementId
+              ? {
+                  ...el,
+                  data: {
+                    ...el.data,
+                    position: { ...el.data.position, x: newX, y: newY },
+                    size: { width: newWidth, height: newHeight },
+                    rotation: newRotation,
+                  },
+                  fontSize: newFontSize,
+                }
+              : el
+          ),
+          updatedAt: new Date().toISOString(),
+          data: prev.data,
+        };
+      });
+      scheduleAutoSave();
+      return;
     }
-    node.scaleX(1);
-    node.scaleY(1);
+
+    const aspectRatio = node.height() / node.width();
+    const requestedWidth = node.width() * scaleX;
+    let newWidth = Math.min(MAX_ELEMENT_SIZE, Math.max(MIN_ELEMENT_SIZE, requestedWidth));
+    let newHeight = newWidth * aspectRatio;
+    if (newHeight > MAX_ELEMENT_SIZE) {
+      newHeight = MAX_ELEMENT_SIZE;
+      newWidth = newHeight / aspectRatio;
+    }
+    const newX = node.x();
+    const newY = node.y();
+    const newRotation = node.rotation();
+
+    node.setAttrs({ scaleX: 1, scaleY: 1, width: newWidth, height: newHeight, x: newX, y: newY, rotation: newRotation });
+
     setCanvas((prev) => {
       if (!prev) return prev;
       return {
         ...prev,
         elements: prev.elements.map((el) =>
           el.id === elementId
-            ? { ...el, data: { ...el.data, position: { ...el.data.position, x: node.x(), y: node.y() }, size: { width: newWidth, height: newHeight }, rotation: node.rotation() } }
+            ? { ...el, data: { ...el.data, position: { ...el.data.position, x: newX, y: newY }, size: { width: newWidth, height: newHeight }, rotation: newRotation } }
             : el
         ),
         updatedAt: new Date().toISOString(),
         data: prev.data,
       };
     });
+    scheduleAutoSave();
+  };
+
+  const fitToContent = () => {
+    if (!canvas || !stageRef.current) return;
+    if (canvas.elements.length === 0) { resetView(); return; }
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const el of canvas.elements) {
+      minX = Math.min(minX, el.data.position.x);
+      minY = Math.min(minY, el.data.position.y);
+      maxX = Math.max(maxX, el.data.position.x + el.data.size.width);
+      maxY = Math.max(maxY, el.data.position.y + el.data.size.height);
+    }
+
+    const padding = 80;
+    const contentW = maxX - minX + padding * 2;
+    const contentH = maxY - minY + padding * 2;
+    const newScale = Math.min(
+      Math.max(Math.min(dimensions.width / contentW, dimensions.height / contentH), 0.1),
+      5,
+    );
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    const newPos = {
+      x: dimensions.width / 2 - centerX * newScale,
+      y: dimensions.height / 2 - centerY * newScale,
+    };
+    setView(newScale, newPos);
     scheduleAutoSave();
   };
 
@@ -597,7 +718,7 @@ const Canvas = () => {
         isImageSelected={!!isImageSelected}
         onDeleteImage={handleDeleteImage}
         isTextSelected={!!isTextSelected}
-        onDeleteElement={handleDeleteElement}
+        onDeleteElement={handleDeleteElement} 
         onBringToFront={handleBringToFront}
         onSendToBack={handleSendToBack}
         onSave={saveCanvas}
@@ -608,7 +729,7 @@ const Canvas = () => {
         onFileChange={handleFileChange}
         onTextInputKeyDown={handleTextInputKeyDown}
         scale={scale}
-        onResetView={resetView}
+        onResetView={fitToContent}
       />
 
       <Stage
@@ -644,6 +765,7 @@ const Canvas = () => {
           elements={canvas.elements}
           loadedImages={loadedImages}
           transformerRef={transformerRef}
+          selectedElementType={selectedElement?.type}
           onSelect={setSelectedId}
           onDragStart={handleElementDragStart}
           onDragEnd={handleDragEnd}

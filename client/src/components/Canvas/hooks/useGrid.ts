@@ -425,6 +425,13 @@ const useGrid = ({
     }
   }, [dataAppliedRef.current]);
 
+  // Redraw grid when style props (e.g. theme color) change
+  useEffect(() => {
+    if (stageRef.current && gridLayerRef.current && dataAppliedRef.current) {
+      drawGridLines();
+    }
+  }, [gridColor, gridOpacity, stepSize]);
+
   // Export this for debugging
   const forceApplyData = () => {
     if (!stageRef.current || !initialCanvasData) return;
@@ -535,6 +542,13 @@ const useGrid = ({
       drawGridLines();
     },
     resetView,
+    setView: (newScale: number, newPos: { x: number; y: number }) => {
+      if (!stageRef.current) return;
+      stageRef.current.scale({ x: newScale, y: newScale });
+      stageRef.current.position(newPos);
+      updateView(newScale, newPos);
+      drawGridLines();
+    },
     handleWheel,
     drawGridLines,
     getCanvasData,

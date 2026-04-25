@@ -91,7 +91,7 @@ namespace server.Models
         //COMMON
         [FirestoreProperty]
         public required string Id { get; set; }
-        
+
         [FirestoreProperty]
         public required CanvasElementType Type { get; set; }
 
@@ -103,6 +103,9 @@ namespace server.Models
 
         [FirestoreProperty]
         public required string ImageId { get; set; }
+
+        [FirestoreProperty]
+        public float? FontSize { get; set; }
     }
 
     [FirestoreData]

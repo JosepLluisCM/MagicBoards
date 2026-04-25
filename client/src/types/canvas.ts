@@ -31,6 +31,7 @@ export interface CanvasElement {
   data: CanvasElementData;
   content: string;
   imageId: string;
+  fontSize?: number;
 }
 
 export interface CanvasElementData {

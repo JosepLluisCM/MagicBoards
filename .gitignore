@@ -21,6 +21,7 @@ CLAUDE.md
 AUDIT.md
 .claude.json
 .playwright-mcp/
+.mcp.json
 
 # IDE / tooling
 launchSettings.json
