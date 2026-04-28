@@ -10,10 +10,12 @@ namespace server.Controllers
     public class CanvasesController : CustomBaseController
     {
         private readonly CanvasesService _canvasesService;
+        private readonly ImagesService _imagesService;
 
-        public CanvasesController(CanvasesService canvasesService)
+        public CanvasesController(CanvasesService canvasesService, ImagesService imagesService)
         {
             _canvasesService = canvasesService;
+            _imagesService = imagesService;
         }
 
         [HttpGet]
@@ -56,6 +58,24 @@ namespace server.Controllers
             string uid = GetUserIdOrUnauthorized();
             Canvas updatedCanvas = await _canvasesService.UpdateCanvasAsync(canvasId, request, uid);
             return Ok(updatedCanvas);
+        }
+
+        [HttpPost("{canvasId}/preview")]
+        [RequestSizeLimit(5 * 1024 * 1024)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 5 * 1024 * 1024)]
+        public async Task<IActionResult> UploadPreview(string canvasId, IFormFile image)
+        {
+            if (image == null || image.Length == 0)
+                return BadRequest("No preview image provided");
+
+            string ext = Path.GetExtension(image.FileName).ToLowerInvariant();
+            string mime = (image.ContentType ?? "").ToLowerInvariant();
+            if (mime != "image/png" || ext != ".png")
+                return BadRequest("Preview must be a PNG.");
+
+            string uid = GetUserIdOrUnauthorized();
+            string imagePath = await _imagesService.UploadPreviewAsync(canvasId, image, uid);
+            return Ok(new { imagePath });
         }
     }
 }

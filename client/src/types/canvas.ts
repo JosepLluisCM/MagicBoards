@@ -13,6 +13,7 @@ export interface Canvas {
   userId: string;
   createdAt: string; // Using string for DateTime
   updatedAt: string;
+  previewImage?: string;
 }
 
 export interface CanvasData {

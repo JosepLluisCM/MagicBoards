@@ -61,6 +61,54 @@ namespace server.Services
             return filePath;
         }
 
+        // Uploads / overwrites the canvas preview thumbnail at a fixed key,
+        // upserts a deterministic ImageRecord (IsPreview=true), and stamps the
+        // canvas document's PreviewImage path + UpdatedAt.
+        public async Task<string> UploadPreviewAsync(string canvasId, IFormFile imageFile, string uid)
+        {
+            bool isOwner = await _firestoreService.IsOwnerAsync(canvasId, uid, "canvases");
+            if (!isOwner) throw new UnauthorizedAccessException("You do not have permission to upload this preview.");
+
+            const string fileName = "previewImage.png";
+            string filePath = $"{uid}/{canvasId}/{fileName}";
+
+            using (var memoryStream = new MemoryStream())
+            {
+                await imageFile.CopyToAsync(memoryStream);
+                memoryStream.Position = 0;
+
+                await _s3Client.PutObjectAsync(new PutObjectRequest
+                {
+                    BucketName = _bucketName,
+                    Key = filePath,
+                    InputStream = memoryStream,
+                    ContentType = "image/png",
+                    DisablePayloadSigning = true
+                });
+            }
+
+            // Deterministic doc ID so repeated uploads upsert the same record.
+            string recordId = $"{canvasId}_preview";
+            var record = new ImageRecord
+            {
+                ImagePath = filePath,
+                CanvasId = canvasId,
+                Uid = uid,
+                UploadedAt = DateTime.UtcNow,
+                IsPreview = true
+            };
+            await _firestoreDb.Collection("images").Document(recordId).SetAsync(record);
+
+            // Stamp the canvas document so the list endpoint can show the preview.
+            await _firestoreDb.Collection("canvases").Document(canvasId).UpdateAsync(new Dictionary<string, object>
+            {
+                { "PreviewImage", filePath },
+                { "UpdatedAt", DateTime.UtcNow }
+            });
+
+            return filePath;
+        }
+
         internal (string pathUserId, string pathCanvasId) ValidateAndParsePath(string imagePath, string uid)
         {
             string[] parts = imagePath.Split('/');
@@ -131,7 +179,7 @@ namespace server.Services
 
             var orphans = snapshot.Documents
                 .Select(d => d.ConvertTo<ImageRecord>())
-                .Where(r => !referencedSet.Contains(r.ImagePath))
+                .Where(r => !r.IsPreview && !referencedSet.Contains(r.ImagePath))
                 .ToList();
 
             if (orphans.Count == 0) return;

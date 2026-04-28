@@ -24,5 +24,10 @@ namespace server.Models
 
         [FirestoreProperty]
         public required DateTime UploadedAt { get; set; }
+
+        // True for the canvas preview thumbnail. Orphan cleanup skips these
+        // because their lifecycle is tied to the canvas, not to element refs.
+        [FirestoreProperty]
+        public bool IsPreview { get; set; } = false;
     }
 }

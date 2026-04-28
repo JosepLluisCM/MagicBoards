@@ -36,7 +36,8 @@ namespace server.Services
                 Name = doc.GetValue<string>("Name"),
                 UserId = doc.GetValue<string>("UserId"),
                 CreatedAt = doc.GetValue<DateTime>("CreatedAt"),
-                UpdatedAt = doc.GetValue<DateTime>("UpdatedAt")
+                UpdatedAt = doc.GetValue<DateTime>("UpdatedAt"),
+                PreviewImage = doc.ContainsField("PreviewImage") ? doc.GetValue<string>("PreviewImage") : ""
             }).ToList();
 
             return result;

@@ -33,6 +33,11 @@ namespace server.Models
         [FirestoreProperty]
         public required DateTime UpdatedAt { get; set; }
 
+        // Empty string until the first preview is uploaded (after first save).
+        // R2 path: "{uid}/{canvasId}/previewImage.jpg".
+        [FirestoreProperty]
+        public string PreviewImage { get; set; } = "";
+
         //CONSTRUCTOR
         public static Canvas CreateNew(string Id, string userId, string name = "Untitled Canvas")
         {
@@ -48,7 +53,8 @@ namespace server.Models
                 Elements = new List<CanvasElement>(),
                 UserId = userId,
                 CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                UpdatedAt = DateTime.UtcNow,
+                PreviewImage = ""
             };
         }
 
@@ -62,7 +68,8 @@ namespace server.Models
                 Elements = elements,
                 UserId = originalCanvas.UserId,
                 CreatedAt = originalCanvas.CreatedAt,
-                UpdatedAt = DateTime.UtcNow
+                UpdatedAt = DateTime.UtcNow,
+                PreviewImage = originalCanvas.PreviewImage
             };
         }
     }

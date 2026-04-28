@@ -4,4 +4,5 @@ export interface canvasListItem {
   userId: string;
   createdAt: string;
   updatedAt: string;
+  previewImage?: string;
 }

@@ -32,3 +32,17 @@ export async function updateCanvas(canvas: Canvas): Promise<Canvas> {
   const response = await apiClient.put(`canvases/${canvas.id}`, request);
   return response.data;
 }
+
+export async function uploadCanvasPreview(
+  canvasId: string,
+  blob: Blob
+): Promise<string> {
+  const formData = new FormData();
+  formData.append("image", blob, "previewImage.png");
+  const response = await apiClient.post(
+    `canvases/${canvasId}/preview`,
+    formData,
+    { headers: { "Content-Type": "multipart/form-data" } }
+  );
+  return response.data.imagePath;
+}

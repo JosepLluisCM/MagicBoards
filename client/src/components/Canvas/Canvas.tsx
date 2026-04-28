@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Stage, Layer } from "react-konva";
 import Konva from "konva";
 import { useNavigate, useParams } from "react-router-dom";
-import { getCanvas, updateCanvas } from "@/api/services/CanvasService";
+import { getCanvas, updateCanvas, uploadCanvasPreview } from "@/api/services/CanvasService";
 import {
   uploadImage,
   getImage,
@@ -351,6 +351,45 @@ const Canvas = () => {
   //#endregion EFFECTS
 
   //#region HANDLERS
+  // Generates a JPEG thumbnail of the canvas content (or the current view if
+  // there are no elements). Returns null if there's nothing meaningful to capture.
+  const generatePreviewBlob = async (): Promise<Blob | null> => {
+    const stage = stageRef.current;
+    const current = canvasRef.current;
+    if (!stage || !current || current.elements.length === 0) return null;
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const el of current.elements) {
+      minX = Math.min(minX, el.data.position.x);
+      minY = Math.min(minY, el.data.position.y);
+      maxX = Math.max(maxX, el.data.position.x + el.data.size.width);
+      maxY = Math.max(maxY, el.data.position.y + el.data.size.height);
+    }
+    const padding = 40;
+    minX -= padding; minY -= padding; maxX += padding; maxY += padding;
+
+    const sx = stage.scaleX();
+    const screenX = minX * sx + stage.x();
+    const screenY = minY * sx + stage.y();
+    const screenW = (maxX - minX) * sx;
+    const screenH = (maxY - minY) * sx;
+    if (screenW <= 0 || screenH <= 0) return null;
+
+    const TARGET = 600;
+    const pixelRatio = Math.min(1, TARGET / Math.max(screenW, screenH));
+
+    const dataUrl = stage.toDataURL({
+      x: screenX,
+      y: screenY,
+      width: screenW,
+      height: screenH,
+      pixelRatio,
+      mimeType: "image/png",
+    });
+    const res = await fetch(dataUrl);
+    return await res.blob();
+  };
+
   const saveCanvas = async () => {
     const currentCanvas = canvasRef.current;
     if (!currentCanvas) return;
@@ -363,6 +402,16 @@ const Canvas = () => {
       const updatedCanvas = { ...currentCanvas, data: getCanvasData(), updatedAt: new Date().toISOString() };
       await updateCanvas(updatedCanvas);
       markAsSaved();
+
+      try {
+        const blob = await generatePreviewBlob();
+        if (blob) {
+          const path = await uploadCanvasPreview(updatedCanvas.id, blob);
+          setCanvas((prev) => prev ? { ...prev, previewImage: path } : prev);
+        }
+      } catch (previewErr) {
+        console.error("Error uploading canvas preview:", previewErr);
+      }
     } catch (err) {
       console.error("Error saving canvas:", err);
       setError("Failed to save canvas");

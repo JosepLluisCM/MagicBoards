@@ -11,10 +11,17 @@ export async function uploadImage(imageFile: File, id?: string): Promise<string>
   return response.data.imagePath;
 }
 
-export async function getImage(imagePath: string): Promise<string> {
-  const response = await apiClient.get(`images/${encodeURIComponent(imagePath)}`, {
-    responseType: "blob",
-  });
+export async function getImage(
+  imagePath: string,
+  cacheBuster?: string
+): Promise<string> {
+  // Server route ignores the query string, but Axios + the browser HTTP cache
+  // see it as a distinct URL — used by callers (e.g. canvas previews) that
+  // need to bypass the 1-day cache when the path is fixed but content changed.
+  const url = `images/${encodeURIComponent(imagePath)}${
+    cacheBuster ? `?v=${encodeURIComponent(cacheBuster)}` : ""
+  }`;
+  const response = await apiClient.get(url, { responseType: "blob" });
   return URL.createObjectURL(response.data);
 }
 

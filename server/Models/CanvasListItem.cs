@@ -19,6 +19,9 @@ namespace server.Models
 
         [FirestoreProperty]
         public required DateTime UpdatedAt { get; set; }
+
+        [FirestoreProperty]
+        public string PreviewImage { get; set; } = "";
     }
 }
 

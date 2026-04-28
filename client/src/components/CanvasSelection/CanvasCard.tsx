@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { LayoutTemplate, X } from "lucide-react";
 import { canvasListItem } from "@/types/CanvasListItem";
 import { formatDate } from "@/utils/timeUtils";
+import { getImage } from "@/api/services/ImagesService";
 
 interface CanvasCardProps {
   canvas: canvasListItem;
@@ -18,7 +19,33 @@ const CanvasCard: React.FC<CanvasCardProps> = ({
   onDelete,
   isSubmitting,
 }) => {
-  const { id, name, createdAt, updatedAt } = canvas;
+  const { id, name, createdAt, updatedAt, previewImage } = canvas;
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!previewImage) {
+      setPreviewUrl(null);
+      return;
+    }
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    getImage(previewImage, updatedAt)
+      .then((url) => {
+        if (cancelled) {
+          URL.revokeObjectURL(url);
+          return;
+        }
+        objectUrl = url;
+        setPreviewUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setPreviewUrl(null);
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [previewImage, updatedAt]);
 
   return (
     <Card
@@ -26,8 +53,17 @@ const CanvasCard: React.FC<CanvasCardProps> = ({
       onClick={() => onOpen(id)}
     >
       {/* Canvas preview */}
-      <div className="flex h-28 items-center justify-center bg-gradient-to-br from-primary/20 via-primary/8 to-transparent">
-        <LayoutTemplate className="h-9 w-9 text-primary/35 transition-colors duration-200 group-hover:text-primary/55" />
+      <div className="flex h-28 items-center justify-center overflow-hidden bg-gradient-to-br from-primary/20 via-primary/8 to-transparent">
+        {previewUrl ? (
+          <img
+            src={previewUrl}
+            alt={`${name} preview`}
+            className="h-full w-full object-contain"
+            draggable={false}
+          />
+        ) : (
+          <LayoutTemplate className="h-9 w-9 text-primary/35 transition-colors duration-200 group-hover:text-primary/55" />
+        )}
       </div>
 
       <CardHeader className="pb-1 pt-3">
