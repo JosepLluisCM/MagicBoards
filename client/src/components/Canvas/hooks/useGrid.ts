@@ -59,12 +59,12 @@ const useGrid = ({
   // Effect to update state when initialCanvasData changes
   useEffect(() => {
     if (initialCanvasData) {
-      // Use exact scale from database
-      const canvasScale =
+      const rawScale =
         typeof initialCanvasData.scale === "number" &&
         initialCanvasData.scale > 0
           ? initialCanvasData.scale
           : 1;
+      const canvasScale = Math.min(Math.max(rawScale, minScale), maxScale);
 
       // Ensure position values are numbers
       const canvasX = Number(initialCanvasData.position.x || 0);
@@ -309,10 +309,11 @@ const useGrid = ({
     if (!initialCanvasData) return; // Wait for data
 
     // Get valid position and scale values
-    const canvasScale =
+    const rawScale =
       typeof initialCanvasData.scale === "number" && initialCanvasData.scale > 0
         ? initialCanvasData.scale
         : 1;
+    const canvasScale = Math.min(Math.max(rawScale, minScale), maxScale);
     const canvasX = Number(initialCanvasData.position.x || 0);
     const canvasY = Number(initialCanvasData.position.y || 0);
 
@@ -436,10 +437,11 @@ const useGrid = ({
   const forceApplyData = () => {
     if (!stageRef.current || !initialCanvasData) return;
 
-    const canvasScale =
+    const rawScale =
       typeof initialCanvasData.scale === "number" && initialCanvasData.scale > 0
         ? initialCanvasData.scale
         : 1;
+    const canvasScale = Math.min(Math.max(rawScale, minScale), maxScale);
     const canvasX = Number(initialCanvasData.position.x || 0);
     const canvasY = Number(initialCanvasData.position.y || 0);
 

@@ -69,7 +69,7 @@ const Canvas = () => {
     gridOpacity: 0.08,
     showBorder: false,
     minScale: 0.1,
-    maxScale: 5,
+    maxScale: 1.5,
     initialCanvasData: canvas?.data,
     onViewChange: () => {
       scheduleAutoSave();
@@ -392,16 +392,29 @@ const Canvas = () => {
         const stageY = stage?.y() ?? 0;
         const centerCanvasX = (dimensions.width / 2 - stageX) / stageScale;
         const centerCanvasY = (dimensions.height / 2 - stageY) / stageScale;
+
+        // Fit the image to ~50% of the viewport (in canvas units) so 100% zoom
+        // stays a natural working zoom. Never upscale beyond the image's native size.
+        const maxWidth = (dimensions.width * 0.5) / stageScale;
+        const maxHeight = (dimensions.height * 0.5) / stageScale;
+        const fitScale = Math.min(
+          1,
+          maxWidth / img.naturalWidth,
+          maxHeight / img.naturalHeight,
+        );
+        const width = img.naturalWidth * fitScale;
+        const height = img.naturalHeight * fitScale;
+
         const newElement: CanvasElement = {
           id: elementId,
           type: CanvasElementType.Image,
           data: {
             position: {
-              x: centerCanvasX - img.naturalWidth / 2,
-              y: centerCanvasY - img.naturalHeight / 2,
+              x: centerCanvasX - width / 2,
+              y: centerCanvasY - height / 2,
               zIndex: canvas.elements.length + 1,
             },
-            size: { width: img.naturalWidth, height: img.naturalHeight },
+            size: { width, height },
             rotation: 0,
           },
           content: "",
@@ -654,7 +667,7 @@ const Canvas = () => {
 
   const fitToContent = () => {
     if (!canvas || !stageRef.current) return;
-    if (canvas.elements.length === 0) { resetView(); return; }
+    if (canvas.elements.length === 0) { resetView(); scheduleAutoSave(); return; }
 
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const el of canvas.elements) {
@@ -669,7 +682,7 @@ const Canvas = () => {
     const contentH = maxY - minY + padding * 2;
     const newScale = Math.min(
       Math.max(Math.min(dimensions.width / contentW, dimensions.height / contentH), 0.1),
-      5,
+      1.5,
     );
     const centerX = (minX + maxX) / 2;
     const centerY = (minY + maxY) / 2;
